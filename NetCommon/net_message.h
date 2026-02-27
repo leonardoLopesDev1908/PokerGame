@@ -1,3 +1,4 @@
+#pragma once
 #include "net_common.h"
 
 namespace net
@@ -66,4 +67,10 @@ namespace net
 			message<T> message;
 		};
 	}
+
+	namespace udp
+	{
+
+	}
+	
 }
