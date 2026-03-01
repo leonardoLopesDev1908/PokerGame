@@ -11,18 +11,18 @@ namespace net
 		template <typename T>
 		class connection : public std::enable_shared_from_this<connection<T>>
 		{
+		public:
 			enum owner
 			{
 				server, 
 				client
 			};
 
-		public:
-			connection(owner parent, asio::io_context& io, tcp::socket socket,
-				safe_queue<owned_message<T> messages)
-				: m_socket(std::move(socket)), m_context(io), m_messagesIn(message)
+			connection(owner parent, asio::io_context& io, asio::ip::tcp::socket socket,
+				safe_queue<owned_message<T>> messages)
+				: m_socket(std::move(socket)), m_context(io), m_messagesIn(messages)
 			{
-				ownerType = parent;
+				m_ownerType = parent;
 			}
 
 			void send(const message<T>& msg)
@@ -38,10 +38,10 @@ namespace net
 					});
 			}
 
-			void connect_to_server(const tcp::resolver::results_type& endpoints)
+			void connect_to_server(const asio::ip::tcp::resolver::results_type& endpoints)
 			{
 				asio::async_connect(m_socket, endpoints,
-					[this](std::error_code ec, tcp::endpoints)
+					[this](std::error_code ec, asio::ip::tcp::endpoints)
 					{
 						if (!ec)
 						{
@@ -77,7 +77,7 @@ namespace net
 			
 			void read_header()
 			{
-				auto self = shared_from_this();
+				auto self = this->shared_from_this();
 				asio::async_read(m_socket,
 					asio::buffer(m_tempMessage.header, m_tempMessage.header.size),
 					[this, self](std::error_code ec, std::size_t length)
@@ -100,8 +100,8 @@ namespace net
 
 			void read_body()
 			{
-				auto self = shared_from_this();
-				async::read(m_socket,
+				auto self = this->shared_from_this();
+				asio::async_read(m_socket,
 					asio::buffer(m_messagesIn.front().message.body.data(),
 						m_messagesIn.front().message.size()),
 					[this, self](std::error_code ec, std::size_t length)
@@ -120,7 +120,7 @@ namespace net
 
 			void write_header()
 			{
-				auto self = shared_from_this();
+				auto self = this->shared_from_this();
 				asio::async_write(m_socket,
 					asio::buffer(m_messagesOut.front().message.header,
 						m_messagesOut.front().message.header.size),
@@ -139,7 +139,7 @@ namespace net
 
 			void write_body()
 			{
-				auto self = shared_from_this();
+				auto self = this->shared_from_this();
 				asio::async_write(m_socket,
 					asio::buffer(m_messagesOut.front().body.data(), m_messagesOut.front().size()),
 					[this, self](std::error_code ec, std::size_t length)
@@ -159,7 +159,7 @@ namespace net
 
 		protected:
 			owner m_ownerType = owner::server;
-			tcp::socket m_socket;
+			asio::ip::tcp::socket m_socket;
 			asio::io_context& m_context;
 
 			uint32_t id = 0;

@@ -1,10 +1,8 @@
 ﻿#include <iostream>
-#include <olc_net.h>
-
-using namespace std;
+#include <olc_net_server.h>
 
 int main()
 {
-	cout << "Hello CMake." << endl;
+	std::cout << "Hello CMake." << std::endl;
 	return 0;
 }

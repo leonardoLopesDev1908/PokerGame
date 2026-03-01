@@ -12,48 +12,26 @@ namespace net
 		{
 		public:
 			server()
+				: m_acceptor(asio::io_context)
 			{}
 			
 			void wait_client_connect()
 			{
 				m_acceptor.async_accept(
-					[this](std::error_code ec, tcp::socket socket)
+					[this](std::error_code ec, asio::ip::tcp::socket socket)
 					{
 						if (!ec)
 						{
-							m_connections.push_back(
-								std::make_shared<connection<T>>(
-									owner::server, m_context, std::move(socket),
-									m_messages
-								)
+							auto newconn = std::make_shared<connection<T>>(
+								connection::owner::server, m_context, std::move(socket),
+								m_messages
 							);
-							read_header();
+							m_connections.push_back(newconn);
 						}
-					}
-				)
+					});
 			}
 
 		private:
-
-			void read_header()
-			{
-
-			}
-
-			void read_body()
-			{
-
-			}
-
-			void write_header()
-			{
-
-			}
-
-			void write_body()
-			{
-
-			}
 
 
 		protected:
@@ -78,8 +56,8 @@ namespace net
 			asio::io_context m_context;
 
 			safe_queue<owned_message<T>> m_messages;
-			tcp::acceptor m_acceptor;
-			std::vector <std::shared_ptr<connection<T>> m_connections;
+			asio::ip::tcp::acceptor m_acceptor;
+			std::vector<std::shared_ptr<connection<T>>> m_connections;
 		};
 	}
 }

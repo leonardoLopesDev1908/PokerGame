@@ -37,7 +37,6 @@ namespace net
 		{
 			std::lock_guard<std::mutex> lck(m_mtx);
 			m_Queue.push_front(std::forward<T>(item));
-			m_condBlockig.notify_one();
 			m_cond.notify_one();
 		}
 
@@ -62,7 +61,6 @@ namespace net
 		{
 			std::lock_guard<std::mutex> lck(m_mtx);
 			m_Queue.push_back(std::forward<T>(item));
-			m_condBlockig.notify_one();
 			m_cond.notify_one();
 		}
 

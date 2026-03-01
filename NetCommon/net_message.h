@@ -61,6 +61,9 @@ namespace net
 		};
 
 		template <typename T>
+		class connection;
+
+		template <typename T>
 		struct owned_message
 		{
 			std::shared_ptr<connection<T>> remote = nullptr;
