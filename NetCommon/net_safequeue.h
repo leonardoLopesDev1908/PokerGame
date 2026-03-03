@@ -17,26 +17,24 @@ namespace net
 			: m_Queue(other)
 		{}
 
-		T front()
+		T& front()
 		{
 			std::unique_lock<std::mutex> lck(m_mtx);
 			m_cond.wait(lck, [this] { return !m_Queue.empty();});
-			T item = m_Queue.front();
-			return item;
+			return m_Queue.front();
 		}
 		
-		T back()
+		T& back()
 		{
 			std::unique_lock<std::mutex> lck(m_mtx);
 			m_cond.wait(lck, [this] {return !m_Queue.empty();});
-			T item = m_Queue.back();
-			return item;
+			return m_Queue.back();
 		}
 
-		void push_front(T&& item)
+		void push_front(const T& item)
 		{
 			std::lock_guard<std::mutex> lck(m_mtx);
-			m_Queue.push_front(std::forward<T>(item));
+			m_Queue.push_front(item);
 			m_cond.notify_one();
 		}
 
@@ -57,10 +55,10 @@ namespace net
 			m_Queue.pop_front();
 		}
 
-		void push_back(T&& item)
+		void push_back(const T& item)
 		{
 			std::lock_guard<std::mutex> lck(m_mtx);
-			m_Queue.push_back(std::forward<T>(item));
+			m_Queue.push_back(item);
 			m_cond.notify_one();
 		}
 

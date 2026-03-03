@@ -11,53 +11,146 @@ namespace net
 		class server
 		{
 		public:
-			server()
-				: m_acceptor(asio::io_context)
-			{}
-			
+			explicit server(uint16_t port)
+				: m_acceptor(m_context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port))
+			{
+			}
+
+			virtual ~server()
+			{
+				stop();
+			}
+
+			bool start()
+			{
+				try{
+					wait_client_connect();
+					m_threadContext = std::thread([this] { m_context.run(); });
+				}
+				catch (std::exception& e)
+				{
+					std::cerr << "[ERROR] " << e.what() << '\n';
+					return false;
+				}
+				return true;
+			}
+
+			void stop()
+			{
+				m_context.stop();
+
+				for (auto c : m_connections)
+				{
+					c->disconnect();
+					c.reset();
+				}
+
+				if (m_threadContext.joinable())
+					m_threadContext.join();
+
+			}
+		
+			void update()
+			{
+				while (!m_messages.empty())
+				{
+					auto msg = m_messages.pop_front();
+					std::cout << "Message received!\n";
+				}
+			}
+
+			void message_all(const owned_message<T>& msg, std::shared_ptr<connection<T>> ignoreClient = nullptr)
+			{
+				message<T> msgAll;
+				msgAll << "[" << msg.remote->getId() << "]: " << msg.message;
+
+				bool bInvalidClientExists = false;
+
+				for (auto& c : m_connections)
+				{
+					if (c && c->isconnected())
+					{
+						if (c != ignoreClient)
+							c->send(msgAll);
+					}
+					else
+					{
+						c.reset();
+						bInvalidClientExists = true;
+					}
+				}
+
+				if (bInvalidClientExists)
+				{
+					m_connections.erase(
+						std::remove(m_connection.begin(), m_connections.end(), nullptr),
+						m_connections.end()
+					);
+				}
+			}
+
+			void message_client(const message<T>& msg, std::shared_ptr<connection<T>> client)
+			{
+				if (client && client->is_connected())
+				{
+					client->send(msg);
+				}
+				else
+				{
+					client.reset();
+					m_connections.erase(
+						std::remove(m_connections.begin(), m_connections.end(), client)
+					);
+				}
+			}
+
+		private:
 			void wait_client_connect()
 			{
+				std::cout << "Waiting for a client connection...\n";
 				m_acceptor.async_accept(
 					[this](std::error_code ec, asio::ip::tcp::socket socket)
 					{
 						if (!ec)
 						{
+							std::cout << "Client connected\n";
 							auto newconn = std::make_shared<connection<T>>(
-								connection::owner::server, m_context, std::move(socket),
+								connection<T>::owner::server, m_context, std::move(socket),
 								m_messages
 							);
-							m_connections.push_back(newconn);
+
+							newconn->connect_to_client(m_idCounter++);
+							m_connections.push_back(std::move(newconn));
 						}
+						else
+						{
+							std::cout << "[ERROR] Server new connections failed\n";
+						}
+						wait_client_connect();
 					});
 			}
 
-		private:
-
-
 		protected:
-
-			void on_message()
-			{
-			}
-			
-			void message_all()
+			virtual void on_message(const message<T>& msg, std::shared_ptr<connection<T>> remote = nullptr)
 			{
 			}
 
-			void message_client()
+			virtual void on_client_connect()
 			{
 			}
 
-			void update()
+			virtual void on_client_disconnect()
 			{
 			}
 
 		private:
 			asio::io_context m_context;
-
-			safe_queue<owned_message<T>> m_messages;
 			asio::ip::tcp::acceptor m_acceptor;
+			std::thread m_threadContext;
 			std::vector<std::shared_ptr<connection<T>>> m_connections;
+
+			uint64_t m_idCounter = 10000;
+			safe_queue<owned_message<T>> m_messages;
 		};
 	}
 }

@@ -12,14 +12,14 @@ namespace net
 		class connection : public std::enable_shared_from_this<connection<T>>
 		{
 		public:
-			enum owner
+			enum class owner : uint8_t
 			{
 				server, 
 				client
 			};
 
 			connection(owner parent, asio::io_context& io, asio::ip::tcp::socket socket,
-				safe_queue<owned_message<T>> messages)
+				safe_queue<owned_message<T>>& messages)
 				: m_socket(std::move(socket)), m_context(io), m_messagesIn(messages)
 			{
 				m_ownerType = parent;
@@ -34,18 +34,21 @@ namespace net
 						m_messagesOut.push_back(msg);
 						if (!writingMessage)
 							write_header();
-
 					});
 			}
 
 			void connect_to_server(const asio::ip::tcp::resolver::results_type& endpoints)
 			{
 				asio::async_connect(m_socket, endpoints,
-					[this](std::error_code ec, asio::ip::tcp::endpoints)
+					[this](std::error_code ec, asio::ip::tcp::endpoint)
 					{
 						if (!ec)
 						{
-							write_header();
+							std::cout << "Connected to server\n";
+						}
+						else
+						{
+							std::cout << "[ERROR]: Connect to Server fail.\n";
 						}
 					});
 			}
@@ -62,6 +65,11 @@ namespace net
 				}
 			}
 
+			uint32_t getId()
+			{
+				return id;
+			}
+
 			void disconnect()
 			{
 				if (is_connected())
@@ -75,55 +83,12 @@ namespace net
 
 		private:
 			
-			void read_header()
-			{
-				auto self = this->shared_from_this();
-				asio::async_read(m_socket,
-					asio::buffer(m_tempMessage.header, m_tempMessage.header.size),
-					[this, self](std::error_code ec, std::size_t length)
-					{
-						if (!ec)
-						{
-							if (length > 0)
-							{
-								m_messagesIn.push_back(m_tempMessage);
-								read_body();
-							}
-						}
-						else
-						{
-							m_socket.close();
-						}
-					});
-					
-			}
-
-			void read_body()
-			{
-				auto self = this->shared_from_this();
-				asio::async_read(m_socket,
-					asio::buffer(m_messagesIn.front().message.body.data(),
-						m_messagesIn.front().message.size()),
-					[this, self](std::error_code ec, std::size_t length)
-					{
-						if (!ec)
-						{
-							m_messagesIn.pop_front();
-							read_header();
-						}
-						else
-						{
-							m_socket.close();
-						}
-					});
-			}
-
 			void write_header()
 			{
 				auto self = this->shared_from_this();
 				asio::async_write(m_socket,
-					asio::buffer(m_messagesOut.front().message.header,
-						m_messagesOut.front().message.header.size),
+					asio::buffer(&m_messagesOut.front().header,
+						sizeof(message_header<T>)),
 					[this, self](std::error_code ec, std::size_t length)
 					{
 						if (!ec)
@@ -132,6 +97,7 @@ namespace net
 						}
 						else
 						{
+							std::cout << "[ERROR]: Write header fail.\n";
 							m_socket.close();
 						}
 					});
@@ -147,14 +113,68 @@ namespace net
 						if (!ec)
 						{
 							m_messagesOut.pop_front();
-							write_header();
+							if (!m_messagesOut.empty())
+								write_header();
 						}
 						else
 						{
+							std::cout << "[ERROR]: Write body fail.\n";
 							m_socket.close();
 						}
 
 					});
+			}
+
+			void read_header()
+			{
+				auto self = this->shared_from_this();
+				asio::async_read(m_socket,
+					asio::buffer(&m_tempMessage.header, sizeof(message_header<T>)),
+					[this, self](std::error_code ec, std::size_t length)
+					{
+						if (!ec)
+						{
+							if (length > 0)
+							{
+								read_body();
+							}
+						}
+						else
+						{
+							std::cout << "[ERROR]: Read header fail.\n";
+							m_socket.close();
+						}
+					});
+					
+			}
+
+			void read_body()
+			{
+				auto self = this->shared_from_this();
+				asio::async_read(m_socket,
+					asio::buffer(m_tempMessage.body.data(),
+						m_tempMessage.size()),
+					[this, self](std::error_code ec, std::size_t length)
+					{
+						if (!ec)
+						{
+							add_to_incoming_msg();
+						}
+						else
+						{
+							std::cout << "[ERROR]: Read body fail.\n";
+							m_socket.close();
+						}
+					});
+			}
+
+			void add_to_incoming_msg()
+			{
+				if (m_ownerType == owner::server)
+					m_messagesIn.push_back({this->shared_from_this(), m_tempMessage});
+				else
+					m_messagesIn.push_back({ nullptr, m_tempMessage });
+				read_header();
 			}
 
 		protected:
@@ -163,9 +183,9 @@ namespace net
 			asio::io_context& m_context;
 
 			uint32_t id = 0;
-			owned_message<T> m_tempMessage;
+			message<T> m_tempMessage;
+			safe_queue<owned_message<T>>& m_messagesIn;
 			safe_queue<message<T>> m_messagesOut;
-			safe_queue<owned_message<T>> m_messagesIn;
 		};
 	}
 
