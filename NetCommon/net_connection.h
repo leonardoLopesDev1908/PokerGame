@@ -192,7 +192,6 @@ namespace net
 			{
 				if (m_ownerType == owner::server)
 				{
-					std::cout << "Message written at server queue\n";
 					m_messagesIn.push_back({this->shared_from_this(), m_tempMessage});
 				}
 				else

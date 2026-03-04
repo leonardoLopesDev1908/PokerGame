@@ -55,17 +55,20 @@ namespace net
 				while (!m_messages.empty())
 				{
 					auto msg = m_messages.pop_front();
-					message_all(msg, msg.remote);
+					on_message(msg.message, msg.remote);
 				}
 			}
 
-			void message_all(const owned_message<T>& msg, std::shared_ptr<connection<T>> ignoreClient = nullptr)
+			void message_all(const message<T>& msg, std::shared_ptr<connection<T>> ignoreClient = nullptr)
 			{
 				message<T> msgAll;
-				msgAll << "[" << msg.remote->getId() << "]: " << msg.message;
+
+				if (ignoreClient)
+					msgAll << "[" << ignoreClient->getId() << "]: " << msg;
+				else
+					msgAll << msg;
 
 				bool bInvalidClientExists = false;
-
 				for (auto& c : m_connections)
 				{
 					if (c && c->is_connected())
@@ -149,7 +152,7 @@ namespace net
 			std::thread m_threadContext;
 			std::vector<std::shared_ptr<connection<T>>> m_connections;
 
-			uint64_t m_idCounter = 10000;
+			uint64_t m_idCounter = 1;
 			safe_queue<owned_message<T>> m_messages;
 		};
 	}

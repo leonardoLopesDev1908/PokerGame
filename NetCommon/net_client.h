@@ -45,7 +45,6 @@ namespace net
 			{
 				if (is_connected())
 				{
-					std::cout << "Sending msg\n";
 					m_connection->send(msg);
 				}
 			}
@@ -71,7 +70,7 @@ namespace net
 			}
 
 
-			safe_queue<owned_message<T>> incoming()
+			safe_queue<owned_message<T>>& incoming()
 			{
 				return m_messages;
 			}
