@@ -39,15 +39,15 @@ namespace net
 			{
 				m_context.stop();
 
-				for (auto c : m_connections)
-				{
-					c->disconnect();
-					c.reset();
-				}
-
 				if (m_threadContext.joinable())
 					m_threadContext.join();
 
+				for (auto& c : m_connections)
+				{
+					c->is_connected();
+				}
+
+				m_connections.clear();
 			}
 		
 			void update()
@@ -55,7 +55,7 @@ namespace net
 				while (!m_messages.empty())
 				{
 					auto msg = m_messages.pop_front();
-					std::cout << "Message received!\n";
+					message_all(msg, msg.remote);
 				}
 			}
 
@@ -68,7 +68,7 @@ namespace net
 
 				for (auto& c : m_connections)
 				{
-					if (c && c->isconnected())
+					if (c && c->is_connected())
 					{
 						if (c != ignoreClient)
 							c->send(msgAll);
@@ -83,7 +83,7 @@ namespace net
 				if (bInvalidClientExists)
 				{
 					m_connections.erase(
-						std::remove(m_connection.begin(), m_connections.end(), nullptr),
+						std::remove(m_connections.begin(), m_connections.end(), nullptr),
 						m_connections.end()
 					);
 				}

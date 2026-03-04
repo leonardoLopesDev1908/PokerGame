@@ -10,7 +10,7 @@ namespace net
 		{
 		public:
 
-			client()
+			client() 
 			{}
 
 			virtual ~client()
@@ -43,10 +43,20 @@ namespace net
 
 			void send(const message<T>& msg)
 			{
-				m_connection->send(msg);
+				if (is_connected())
+				{
+					std::cout << "Sending msg\n";
+					m_connection->send(msg);
+				}
 			}
 
-		protected:
+			bool is_connected()
+			{
+				if(m_connection)
+					return m_connection->is_connected();
+				return false;
+			}
+
 			void disconnect()
 			{
 				m_context.stop();
@@ -60,11 +70,10 @@ namespace net
 				m_connection.reset();
 			}
 
-			bool is_connected()
+
+			safe_queue<owned_message<T>> incoming()
 			{
-				if(m_connection)
-					return m_connection->is_connected();
-				return false;
+				return m_messages;
 			}
 
 		protected:
