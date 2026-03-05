@@ -85,14 +85,10 @@ namespace net
 
 			friend message<T>& operator>> (message<T>& msg, std::string& data)
 			{
-				uint32_t size = 0;
-				msg >> size;
-				data.resize(size);
+				data.resize(msg.size());
 
-				size_t i = msg.body.size() - size;
-				std::memcpy(data.data(), msg.body.data() + i, size);
+				std::memcpy(data.data(), msg.body.data(), msg.size());
 
-				msg.body.resize(i);
 				msg.header.size = msg.size();
 				return msg;
 			}

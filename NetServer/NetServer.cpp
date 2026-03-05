@@ -33,6 +33,7 @@ public:
 					std::cout << "Ping from client " << remote->getId() << '\n';
 					net::tcp::message<PokerMessages> echoMessage;
 					echoMessage << msg;
+					remote->send(echoMessage);
 				}
 				break;
 			}
@@ -47,13 +48,16 @@ public:
 
 				net::tcp::message<PokerMessages> msg;
 				msg << message;
-				
-
 				message_all(msg, remote);
 			}
 			case PokerMessages::Call:
 			{
+				std::string msgCall = "Player " + std::to_string(remote->getId()) + " called\n";
+				net::tcp::message<PokerMessages> msg;
+				msg << msgCall;
+				msg.header.id = PokerMessages::Call;
 
+				message_all(msg, remote);
 			}
 			case PokerMessages::Raise:
 			{

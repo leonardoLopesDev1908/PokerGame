@@ -23,9 +23,9 @@ public:
 		Win
 	};
 
-	
 	void ping()
 	{
+		std::cout << "Pinging server...\n";
 		net::tcp::message<PokerMessages> msg;
 		msg << "ECHO\n";
 
@@ -34,14 +34,18 @@ public:
 		send(msg);
 	}
 
-	void raise()
+	void raise(long long int value)
 	{
 
 	}
 
 	void call()
 	{
+		std::cout << "Calling...\n";
+		net::tcp::message<PokerMessages> callMsg;
+		callMsg.header.id = PokerMessages::Call;
 
+		send(callMsg);
 	}
 
 	void fold()
@@ -93,13 +97,14 @@ int main()
 		key[2] = GetAsyncKeyState('2') & 0x8000;
 		key[3] = GetAsyncKeyState('3') & 0x8000;
 		key[4] = GetAsyncKeyState('4') & 0x8000;
-		
-		for (int i = 1; i <= 4; i++) old_key[i] = key[i];
 
 		if (key[1] && !old_key[1]) c.ping();
-		if (key[2] && !old_key[2]) c.end();
-		if (key[3] && !old_key[3]) bQuit = true;
-		if (key[4] && !old_key[4]) c.call();
+		if (key[2] && !old_key[2]) bQuit = true;
+		if (key[3] && !old_key[3]) c.call();
+
+		for (int i = 1; i <= 4; i++) old_key[i] = key[i];
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
 		if (c.is_connected())
 		{
@@ -111,7 +116,16 @@ int main()
 				{
 				case PokerMessages::Ping:
 				{
-					std::cout << "Message returned\n";
+					std::string a;
+					msgIn >> a;
+					std::cout << a;
+					break;
+				}
+				case PokerMessages::Call:
+				{
+					std::string a;
+					msgIn >> a;
+					std::cout << a;
 					break;
 				}
 				}
