@@ -32,6 +32,7 @@ public:
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
+		
 
 	}
 
@@ -127,6 +128,7 @@ private:
 
 	std::array<uint64_t, 5> m_remainingPlayers;
 	std::unordered_map<uint64_t, long long int> m_players;
+	Deque m_Deque;
 };
 
 int main()

@@ -1,5 +1,6 @@
 #include <deque>
 #include <algorithm>
+#include <random>
 
 class Card
 {
@@ -18,8 +19,11 @@ public:
 	Suit suit;
 	Rank rank;
 
-	Card()
-	{}
+	Card(int aSuit, int aRank)
+	{
+		suit = static_cast<Suit>(aSuit);
+		rank = static_cast<Rank>(aRank);
+	}
 };
 
 class Deque
@@ -32,7 +36,9 @@ class Deque
 
 		Card& getCard()
 		{
-			return m_cards.pop_back();
+			auto& card = m_cards.back();
+			m_cards.pop_back();
+			return card;
 		}
 
 		void putCard(Card&& c)
@@ -42,7 +48,7 @@ class Deque
 
 		void shuffle()
 		{
-			std::shuffle(m_cards.begin(), m_cards.end());
+			std::shuffle(m_cards.begin(), m_cards.end(), std::mt19937{ std::random_device{}()});
 		}
 
 private:
@@ -60,5 +66,4 @@ private:
 
 private:
 	std::deque<Card> m_cards;
-
 };

@@ -2,6 +2,7 @@
 #include <olc_net_client.h>
 #include <Windows.h>
 #include <deque_card.h>
+#include <optional>
 
 enum class PokerMessages
 {
@@ -64,6 +65,7 @@ public:
 
 private:
 	long long int m_money;
+	std::array<std::optional<Card>, 2> m_hand{};
 };
 
 
