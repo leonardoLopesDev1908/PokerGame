@@ -8,4 +8,5 @@ endif()
 find_package(asio CONFIG REQUIRED)
 
 target_include_directories(NetClient PRIVATE ../NetCommon)
+target_include_directories(NetClient PRIVATE ../NetDeque)
 target_link_libraries(NetClient PRIVATE asio::asio)

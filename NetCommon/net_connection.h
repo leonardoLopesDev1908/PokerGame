@@ -36,7 +36,6 @@ namespace net
 						{
 							write_header();
 						}
-
 					});
 			}
 

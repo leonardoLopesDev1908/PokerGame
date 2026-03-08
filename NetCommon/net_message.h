@@ -38,7 +38,7 @@ namespace net
 				msg.body.resize(i + sizeof(DataType));
 
 				std::memcpy(msg.body.data() + i, &data, sizeof(DataType));
-				
+
 				msg.header.size = msg.size();
 
 				return msg;
@@ -46,8 +46,7 @@ namespace net
 
 			friend message<T>& operator <<(message<T>& msg, const std::string& data)
 			{
-				msg << (uint32_t)data.size();
-				size_t i = msg.body.size();
+				size_t i = msg.size();
 
 				msg.body.resize(i + data.size());
 				std::memcpy(msg.body.data() + i, data.data(), data.size());
@@ -63,7 +62,7 @@ namespace net
 
 				msg.body.resize(i);
 				std::memcpy(msg.body.data() + j, other.body.data(), other.size());
-				
+
 				msg.header.size = msg.size();
 				return msg;
 			}
@@ -83,13 +82,16 @@ namespace net
 				return msg;
 			}
 
-			friend message<T>& operator>> (message<T>& msg, std::string& data)
+			friend message<T>& operator >>(message<T>& msg, std::string& data)
 			{
 				data.resize(msg.size());
+			
+				size_t i = msg.size() - data.size();
+				std::memcpy((void*)data.data(), msg.body.data(), msg.size());
 
-				std::memcpy(data.data(), msg.body.data(), msg.size());
+				msg.body.resize(i);
+				msg.header.size = (uint32_t)msg.size();
 
-				msg.header.size = msg.size();
 				return msg;
 			}
 		};
@@ -109,5 +111,5 @@ namespace net
 	{
 
 	}
-	
+
 }

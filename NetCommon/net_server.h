@@ -35,6 +35,31 @@ namespace net
 				return true;
 			}
 
+			void wait_client_connect()
+			{
+				std::cout << "Waiting for a client connection...\n";
+				m_acceptor.async_accept(
+					[this](std::error_code ec, asio::ip::tcp::socket socket)
+					{
+						if (!ec)
+						{
+							auto newconn = std::make_shared<connection<T>>(
+								connection<T>::owner::server, m_context, std::move(socket),
+								m_messages
+							);
+							newconn->connect_to_client(m_idCounter++);
+							m_connections.push_back(std::move(newconn));
+
+							on_client_connect();
+						}
+						else
+						{
+							std::cout << "[ERROR] Server new connections failed\n";
+							wait_client_connect();
+						}
+					});
+			}
+
 			void stop()
 			{
 				m_context.stop();
@@ -107,39 +132,14 @@ namespace net
 				}
 			}
 
-		private:
-			void wait_client_connect()
-			{
-				std::cout << "Waiting for a client connection...\n";
-				m_acceptor.async_accept(
-					[this](std::error_code ec, asio::ip::tcp::socket socket)
-					{
-						if (!ec)
-						{
-							std::cout << "Client connected\n";
-							auto newconn = std::make_shared<connection<T>>(
-								connection<T>::owner::server, m_context, std::move(socket),
-								m_messages
-							);
-
-							newconn->connect_to_client(m_idCounter++);
-							m_connections.push_back(std::move(newconn));
-						}
-						else
-						{
-							std::cout << "[ERROR] Server new connections failed\n";
-						}
-						wait_client_connect();
-					});
-			}
-
 		protected:
-			virtual void on_message(const message<T>& msg, std::shared_ptr<connection<T>> remote = nullptr)
+			virtual void on_message(message<T>& msg, std::shared_ptr<connection<T>> remote = nullptr)
 			{
 			}
 
 			virtual void on_client_connect()
 			{
+				wait_client_connect();
 			}
 
 			virtual void on_client_disconnect()
