@@ -23,6 +23,12 @@ namespace net
 				return body.size();
 			}
 
+			void clear()
+			{
+				body.clear();
+				header.size = 0;
+			}
+
 			friend std::ostream& operator << (std::ostream& os, const message<T>& data)
 			{
 				os << "ID: " << data.header.id << " Size: " << data.header.size << "\n";
@@ -39,7 +45,7 @@ namespace net
 
 				std::memcpy(msg.body.data() + i, &data, sizeof(DataType));
 
-				msg.header.size = msg.size();
+				msg.header.size = (uint32_t)msg.size();
 
 				return msg;
 			}
@@ -51,7 +57,7 @@ namespace net
 				msg.body.resize(i + data.size());
 				std::memcpy(msg.body.data() + i, data.data(), data.size());
 
-				msg.header.size = msg.size();
+				msg.header.size = (uint32_t)msg.size();
 				return msg;
 			}
 
@@ -63,7 +69,7 @@ namespace net
 				msg.body.resize(i);
 				std::memcpy(msg.body.data() + j, other.body.data(), other.size());
 
-				msg.header.size = msg.size();
+				msg.header.size = (uint32_t)msg.size();
 				return msg;
 			}
 
@@ -78,7 +84,7 @@ namespace net
 				std::memcpy(&data, msg.body.data() + i, sizeof(DataType));
 				msg.body.resize(i);
 
-				msg.header.size = msg.size();
+				msg.header.size = (uint32_t)msg.size();
 				return msg;
 			}
 

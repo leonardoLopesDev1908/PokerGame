@@ -1,12 +1,13 @@
-#include <iostream>
 #include <olc_net_server.h>
 #include <unordered_map>
 #include <deque_card.h>
+#include <optional>
+#include <array>
 
 enum class PokerMessages
 {
 	Ping,
-	Connect,
+	Info,
 	Fold,
 	Call,
 	Raise,
@@ -26,13 +27,39 @@ public:
 	void start_game()
 	{
 		net::tcp::message<PokerMessages> msg;
+		msg.header.id = PokerMessages::Info;
 		msg << "Starting game...\n";
 
 		message_all(msg);
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-		
+		m_deque.shuffle();
+
+		std::ostringstream oss;
+		std::string msgStr;
+
+		for (auto& c : m_connections)
+		{
+			msg.clear();
+			oss.str("");
+
+			oss << "Your cards: \n";
+			for (int i = 0; i < 2; i++)
+			{
+				m_hands[c->getId()][i] = m_deque.getCard();
+				oss << m_hands[c->getId()][i].value() 
+					<< (i == 0 ? ", " : "");
+			}
+
+			msgStr = oss.str();
+			msg << msgStr;
+			message_client(msg, c);
+		}
+	}
+
+	void ending_round()
+	{
 
 	}
 
@@ -100,16 +127,23 @@ public:
 		}
 	}
 
-	virtual void on_client_connect(std::shared_ptr<net::tcp::connection<PokerMessages>> client)
+	virtual void on_client_connect()
 	{
+		auto& client = m_connections.back();
+
+		std::cout << "On client connect\n";
 		std::cout << ++m_playersCount << "º player connected\n";
 		m_players.insert({client->getId(), INITIAL_AMOUNT});
+		m_hands[client->getId()] = { std::nullopt, std::nullopt };
 		if (m_playersCount == 5)
 		{
-			void start_game();	
+			start_game();	
 		}
 		else
 		{
+			net::tcp::message<PokerMessages> msg;
+			msg << "Waiting " << std::to_string(5 - m_playersCount) << " players\n";
+			message_all(msg);
 			wait_client_connect();
 		}
 	}
@@ -128,7 +162,9 @@ private:
 
 	std::array<uint64_t, 5> m_remainingPlayers;
 	std::unordered_map<uint64_t, long long int> m_players;
-	Deque m_Deque;
+	std::unordered_map<uint64_t, std::array<std::optional<Card>, 2>> m_hands;
+
+	Deque m_deque;
 };
 
 int main()

@@ -47,9 +47,10 @@ namespace net
 								connection<T>::owner::server, m_context, std::move(socket),
 								m_messages
 							);
+
 							newconn->connect_to_client(m_idCounter++);
 							m_connections.push_back(std::move(newconn));
-
+							
 							on_client_connect();
 						}
 						else
@@ -119,7 +120,7 @@ namespace net
 
 			void message_client(const message<T>& msg, std::shared_ptr<connection<T>> client)
 			{
-				if (client && client->is_connected())
+				if (client->is_connected())
 				{
 					client->send(msg);
 				}
@@ -133,7 +134,7 @@ namespace net
 			}
 
 		protected:
-			virtual void on_message(message<T>& msg, std::shared_ptr<connection<T>> remote = nullptr)
+			virtual void on_message(message<T>& msg, std::shared_ptr<connection<T>> remote)
 			{
 			}
 
@@ -146,11 +147,13 @@ namespace net
 			{
 			}
 
+		protected:
+			std::vector<std::shared_ptr<connection<T>>> m_connections;
+
 		private:
 			asio::io_context m_context;
 			asio::ip::tcp::acceptor m_acceptor;
 			std::thread m_threadContext;
-			std::vector<std::shared_ptr<connection<T>>> m_connections;
 
 			uint64_t m_idCounter = 1;
 			safe_queue<owned_message<T>> m_messages;

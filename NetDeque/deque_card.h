@@ -26,6 +26,24 @@ public:
 	}
 };
 
+std::ostream& operator<< (std::ostream& os, const Card& card)
+{
+
+	static const char* ranks[] = {
+		"2", "3", "4", "5", "6", "7", "8",
+		"9", "10", "J", "Q", "K", "A"
+	};
+
+	static const char* suits[] = {
+		"Hearts", "Spades", "Diamond", "Clubs"
+	};
+
+	os << ranks[static_cast<int>(card.rank)] << " of " 
+		<< suits[static_cast<int>(card.suit)] << '\n';
+
+	return os;
+}
+
 class Deque
 {
 	public:
@@ -48,7 +66,8 @@ class Deque
 
 		void shuffle()
 		{
-			std::shuffle(m_cards.begin(), m_cards.end(), std::mt19937{ std::random_device{}()});
+			std::shuffle(m_cards.begin(), m_cards.end(), 
+				std::mt19937{ std::random_device{}()});
 		}
 
 private:

@@ -1,13 +1,11 @@
 ﻿#include <iostream>
 #include <olc_net_client.h>
-#include <Windows.h>
 #include <deque_card.h>
-#include <optional>
 
 enum class PokerMessages
 {
 	Ping,
-	Connect,
+	Info,
 	Fold,
 	Call,
 	Raise,
@@ -65,7 +63,6 @@ public:
 
 private:
 	long long int m_money;
-	std::array<std::optional<Card>, 2> m_hand{};
 };
 
 
@@ -123,24 +120,27 @@ int main()
 			if (!c.incoming().empty())
 			{
 				auto msgIn = c.incoming().pop_front().message;
+				std::string strMsg;
 
 				switch (msgIn.header.id)
 				{
 				case PokerMessages::Ping:
 				{
-					std::string strMsg;
 					msgIn >> strMsg;
 					std::cout << strMsg;
 					break;
 				}
 				case PokerMessages::Call:
 				{
-					std::string strMsg;
 					msgIn >> strMsg;
 					std::cout << strMsg;
 					std::this_thread::sleep_for(std::chrono::milliseconds(500));
 					break;
 				}
+				case PokerMessages::Info:
+					msgIn >> strMsg;
+					std::cout << strMsg;
+					break;
 				}
 			}
 		}
