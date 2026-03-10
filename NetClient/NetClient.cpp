@@ -124,23 +124,25 @@ int main()
 
 				switch (msgIn.header.id)
 				{
-				case PokerMessages::Ping:
-				{
-					msgIn >> strMsg;
-					std::cout << strMsg;
-					break;
-				}
-				case PokerMessages::Call:
-				{
-					msgIn >> strMsg;
-					std::cout << strMsg;
-					std::this_thread::sleep_for(std::chrono::milliseconds(500));
-					break;
-				}
-				case PokerMessages::Info:
-					msgIn >> strMsg;
-					std::cout << strMsg;
-					break;
+					case PokerMessages::Ping:
+					{
+						msgIn >> strMsg;
+						std::cout << strMsg;
+						break;
+					}
+					case PokerMessages::Call:
+					{
+						msgIn >> strMsg;
+						std::cout << strMsg;
+						std::this_thread::sleep_for(std::chrono::milliseconds(500));
+						break;
+					}
+					case PokerMessages::Info:
+					{
+						msgIn >> strMsg;
+						std::cout << strMsg;
+						break;
+					}
 				}
 			}
 		}

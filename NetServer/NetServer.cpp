@@ -12,12 +12,13 @@ enum class PokerMessages
 	Call,
 	Raise,
 	Transaction,
+	Sync,
 	End
 };
 
 class Server : public net::tcp::server<PokerMessages>
 {
-public: 
+public:
 
 	explicit Server(uint16_t port)
 		: net::tcp::server<PokerMessages>(port)
@@ -48,7 +49,7 @@ public:
 			for (int i = 0; i < 2; i++)
 			{
 				m_hands[c->getId()][i] = m_deque.getCard();
-				oss << m_hands[c->getId()][i].value() 
+				oss << m_hands[c->getId()][i].value()
 					<< (i == 0 ? ", " : "");
 			}
 
@@ -56,10 +57,48 @@ public:
 			msg << msgStr;
 			message_client(msg, c);
 		}
+		game();
+	}
+
+	void game()
+	{
+		m_players[m_smallBlind] -= currentBet / 2;
+		m_players[m_bigBlind] -= currentBet;
+
+		bool bEnding = false;
+		int i = 3;
+		std::string msgStr;
+
+		net::tcp::message<PokerMessages> msg;
+		msg.header.id = PokerMessages::Info;
+		
+		while (!bEnding)
+		{
+			msgStr = "Player " + std::to_string(i) + " time\n";
+			msgStr += "Current bet is $" + std::to_string(currentBet) + '\n';
+			msgStr += "Waiting player " + std::to_string(i) + " decision\n";
+			msg << msgStr;
+			message_all(msg);
+
+			//Send a Sync msg to tell the player its his time to play
+
+			std::unique_lock<std::mutex> lck(m_mutex);
+			m_cond.wait(lck, [this] { return m_playerAction; });
+
+			m_playerAction = false;
+			msgStr.clear();
+			msg.clear();
+
+			i = (i < 5) ? i++ : 0;
+		}
+
+		ending_round();
 	}
 
 	void ending_round()
 	{
+		m_smallBlind++;
+		m_bigBlind++;
 
 	}
 
@@ -72,22 +111,26 @@ public:
 			{
 				std::cout << "Ping from client " << remote->getId() << '\n';
 				net::tcp::message<PokerMessages> echoMessage;
+				echoMessage.header.id = PokerMessages::Ping;
 				echoMessage << msg;
 				remote->send(echoMessage);
 				break;
 			}
 			case PokerMessages::Fold:
 			{
-				std::string message = "Fold of Player " + std::to_string(remote->getId());
+				std::string message = "Player " + std::to_string(remote->getId()) + " fold\n";
 				std::cout << message;
 
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg << message;
-
-				auto end = std::remove(m_remainingPlayers.begin(), m_remainingPlayers.end(),
-								remote->getId());
+				returnMsg.header.id = PokerMessages::Info;
+					
+				/*auto end = std::remove(m_remainingPlayers.begin(), m_remainingPlayers.end(),
+								remote->getId());*/
 
 				message_all(returnMsg, remote);
+				m_playerAction = true;
+				m_cond.notify_one();
 				break;
 			}
 			case PokerMessages::Call:
@@ -95,25 +138,29 @@ public:
 				std::string msgCall = "Player " + std::to_string(remote->getId()) + " called\n";
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg << msgCall;
-				returnMsg.header.id = PokerMessages::Call;
+				returnMsg.header.id = PokerMessages::Info;
 
 				m_pot += currentBet;
 				m_players[remote->getId()] -= currentBet;
 
 				message_all(returnMsg, remote);
+				m_playerAction = true;
+				m_cond.notify_one();
 				break;
 			}
 			case PokerMessages::Raise:
 			{
-				std::string bet;
-				net::tcp::message<PokerMessages> copy;
-				msg >> bet;
-				std::cout << "Raise: " << bet << '\n';
+				std::string msgRaise = "Player " + std::to_string(remote->getId()) + " raised\n";
+				net::tcp::message<PokerMessages> returnMsg;
+				returnMsg.header.id = PokerMessages::Info;
+				
+				currentBet *= 2;
 
-				m_players[remote->getId()] -= std::stoi(bet);
+				m_players[remote->getId()] -= currentBet;
+				m_pot += currentBet;
 
-				std::cout << "Player " << remote->getId() << " net ammount: "
-					<< m_players[remote->getId()];
+				m_playerAction = true;
+				m_cond.notify_one();
 				break;
 			}
 			case PokerMessages::Transaction:
@@ -131,18 +178,19 @@ public:
 	{
 		auto& client = m_connections.back();
 
-		std::cout << "On client connect\n";
 		std::cout << ++m_playersCount << "º player connected\n";
 		m_players.insert({client->getId(), INITIAL_AMOUNT});
 		m_hands[client->getId()] = { std::nullopt, std::nullopt };
 		if (m_playersCount == 5)
 		{
+			std::cout << "Lets start the game\n";
 			start_game();	
 		}
 		else
 		{
 			net::tcp::message<PokerMessages> msg;
 			msg << "Waiting " << std::to_string(5 - m_playersCount) << " players\n";
+			msg.header.id = PokerMessages::Info;
 			message_all(msg);
 			wait_client_connect();
 		}
@@ -154,15 +202,23 @@ public:
 	
 public:
 	long long int currentBet = 50;
+	short m_smallBlind = 1;
+	short m_bigBlind = 2;
 
 private:
 	long long INITIAL_AMOUNT = 2500;
 	long long int m_pot = 0;
 	long m_playersCount = 0;
 
-	std::array<uint64_t, 5> m_remainingPlayers;
+	//std::array<uint64_t, 5> m_remainingPlayers;
 	std::unordered_map<uint64_t, long long int> m_players;
 	std::unordered_map<uint64_t, std::array<std::optional<Card>, 2>> m_hands;
+
+	std::thread m_thread;
+	std::mutex m_mutex;
+	std::condition_variable m_cond;
+
+	bool m_playerAction = false;
 
 	Deque m_deque;
 };
