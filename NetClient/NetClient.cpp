@@ -9,8 +9,7 @@ enum class PokerMessages
 	Fold,
 	Call,
 	Raise,
-	Transaction,
-	End
+	Sync
 };
 
 class Client : public net::tcp::client<PokerMessages>
@@ -27,9 +26,8 @@ public:
 	{
 		std::cout << "Pinging server...\n";
 		net::tcp::message<PokerMessages> msg;
-		msg << "ECHO\n";
-
 		msg.header.id = PokerMessages::Ping;
+		msg << "ECHO\n";
 
 		send(msg);
 	}
@@ -97,18 +95,23 @@ int main()
 					}
 					case '2':
 					{
-						c.call();
+						c.fold();
 						break;
 					}
 					case '3':
 					{
-						bQuit = true;
+						c.call();
 						break;
 					}
 					case '4':
 					{
 						//Raising double the bet by default (for now)
 						c.raise();
+						break;
+					}
+					case '5':
+					{
+						bQuit = false;
 						break;
 					}
 				}
@@ -141,6 +144,15 @@ int main()
 					{
 						msgIn >> strMsg;
 						std::cout << strMsg;
+						break;
+					}
+					case PokerMessages::Sync:
+					{
+						std::cout << "It`s your turn: \n";
+						std::cout << "2 - Fold;\n";
+						std::cout << "3 - Call;\n";
+						std::cout << "4 - Raise;\n";
+
 						break;
 					}
 				}

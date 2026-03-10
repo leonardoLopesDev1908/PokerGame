@@ -11,9 +11,7 @@ enum class PokerMessages
 	Fold,
 	Call,
 	Raise,
-	Transaction,
-	Sync,
-	End
+	Sync
 };
 
 class Server : public net::tcp::server<PokerMessages>
@@ -66,7 +64,8 @@ public:
 		m_players[m_bigBlind] -= currentBet;
 
 		bool bEnding = false;
-		int i = 3;
+		int currentPlayerIdx = 3;
+		uint32_t currentId;
 		std::string msgStr;
 
 		net::tcp::message<PokerMessages> msg;
@@ -74,22 +73,30 @@ public:
 		
 		while (!bEnding)
 		{
-			msgStr = "Player " + std::to_string(i) + " time\n";
-			msgStr += "Current bet is $" + std::to_string(currentBet) + '\n';
-			msgStr += "Waiting player " + std::to_string(i) + " decision\n";
-			msg << msgStr;
-			message_all(msg);
+			currentId = m_playersOrder[currentPlayerIdx];
 
+			msgStr = "Player " + std::to_string(currentId) + " time\n";
+			msgStr += "Current bet is $" + std::to_string(currentBet) + '\n';
+			msgStr += "Waiting player " + std::to_string(currentId) + " decision\n";
+			msg << msgStr;
+			
+			//Change message_all to a send just for the remaining players
+			message_all(msg);
+			
 			//Send a Sync msg to tell the player its his time to play
+			net::tcp::message<PokerMessages> sync;
+			sync.header.id = PokerMessages::Sync;
+			message_client(sync, m_playersConnections[currentId]);
 
 			std::unique_lock<std::mutex> lck(m_mutex);
-			m_cond.wait(lck, [this] { return m_playerAction; });
+			m_cond.wait(lck, [this]{ return m_playerAction; });
 
 			m_playerAction = false;
 			msgStr.clear();
 			msg.clear();
 
-			i = (i < 5) ? i++ : 0;
+			//The 5th player keeps the time and never passes it
+			currentPlayerIdx = (currentPlayerIdx <= 5) ? currentPlayerIdx++ : 0;
 		}
 
 		ending_round();
@@ -125,8 +132,8 @@ public:
 				returnMsg << message;
 				returnMsg.header.id = PokerMessages::Info;
 					
-				/*auto end = std::remove(m_remainingPlayers.begin(), m_remainingPlayers.end(),
-								remote->getId());*/
+				auto end = std::remove(m_playersOrder.begin(), m_playersOrder.end(),
+								remote->getId());
 
 				message_all(returnMsg, remote);
 				m_playerAction = true;
@@ -163,14 +170,6 @@ public:
 				m_cond.notify_one();
 				break;
 			}
-			case PokerMessages::Transaction:
-			{
-
-			}
-			case PokerMessages::End:
-			{
-
-			}
 		}
 	}
 
@@ -178,13 +177,18 @@ public:
 	{
 		auto& client = m_connections.back();
 
+		m_playersOrder.push_back(client->getId());
 		std::cout << ++m_playersCount << "º player connected\n";
+
 		m_players.insert({client->getId(), INITIAL_AMOUNT});
 		m_hands[client->getId()] = { std::nullopt, std::nullopt };
+		m_playersConnections[client->getId()] = client;
+
 		if (m_playersCount == 5)
 		{
 			std::cout << "Lets start the game\n";
-			start_game();	
+			m_threadGame = std::thread([this](){start_game();});
+			m_threadGame.detach();
 		}
 		else
 		{
@@ -199,7 +203,7 @@ public:
 	virtual void on_client_disconnect()
 	{
 	}
-	
+
 public:
 	long long int currentBet = 50;
 	short m_smallBlind = 1;
@@ -210,11 +214,12 @@ private:
 	long long int m_pot = 0;
 	long m_playersCount = 0;
 
-	//std::array<uint64_t, 5> m_remainingPlayers;
-	std::unordered_map<uint64_t, long long int> m_players;
-	std::unordered_map<uint64_t, std::array<std::optional<Card>, 2>> m_hands;
+	std::vector<uint32_t> m_playersOrder;
+	std::unordered_map<uint32_t, long long int> m_players;
+	std::unordered_map<uint32_t, std::array<std::optional<Card>, 2>> m_hands;
+	std::unordered_map <uint32_t, std::shared_ptr<net::tcp::connection<PokerMessages>>> m_playersConnections;
 
-	std::thread m_thread;
+	std::thread m_threadGame;
 	std::mutex m_mutex;
 	std::condition_variable m_cond;
 

@@ -155,7 +155,7 @@ namespace net
 			asio::ip::tcp::acceptor m_acceptor;
 			std::thread m_threadContext;
 
-			uint64_t m_idCounter = 1;
+			uint32_t m_idCounter = 1;
 			safe_queue<owned_message<T>> m_messages;
 		};
 	}
