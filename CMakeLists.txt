@@ -15,6 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project ("PokerGame")
 
 # Inclua subprojetos.
-add_subdirectory("NetCommon")
-add_subdirectory ("NetClient")
-add_subdirectory ("NetServer")
+add_subdirectory("netcommon")
+add_subdirectory ("client")
+add_subdirectory ("server")
+add_subdirectory("common")

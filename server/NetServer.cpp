@@ -1,10 +1,12 @@
 #include <olc_net_server.h>
 #include <unordered_map>
 #include <deque_card.h>
+#include <enums.h>
 #include <optional>
 #include <array>
 
-enum class PokerMessages
+
+enum class PokerMessages : uint8_t
 {
 	Ping,
 	Info,
@@ -12,16 +14,6 @@ enum class PokerMessages
 	Call,
 	Raise,
 	Sync
-};
-
-enum class Stage
-{
-	Preflop,
-	Flop,
-	Turn,
-	River,
-	Cardchecking,
-	Ending
 };
 
 struct Player
@@ -91,14 +83,13 @@ public:
 		/*m_playersMoney[m_smallBlind] -= currentBet / 2;
 		m_playersMoney[m_bigBlind] -= currentBet;*/
 		int currentPlayerIdx = 2;
-		uint32_t currentId;
 		
 		std::vector<Card> communityCards;
 		
 		net::tcp::message<PokerMessages> msgCards;
 		msgCards.header.id = PokerMessages::Info;
 
-		Stage stage = Stage::Preflop;
+		Stage stage = Stage::PreFlop;
 
 		while (stage != Stage::Ending && !m_activePlayersId.empty())
 		{
@@ -106,7 +97,7 @@ public:
 			currentId = m_activePlayersId[currentPlayerIdx];
 			switch (stage)
 			{
-				case Stage::Preflop:
+				case Stage::PreFlop:
 				{
 					bettingRound(currentPlayerIdx);
 					stage = Stage::Flop;
@@ -146,12 +137,32 @@ public:
 					message_all(msgCards);
 					
 					bettingRound(currentPlayerIdx);
-					stage = Stage::Cardchecking;
+					stage = Stage::CardChecking;
 					break;
 				}
-				case Stage::Cardchecking:
+				case Stage::CardChecking:
 				{
-					//Logic to check the winner 
+					std::string winMsgStr;
+					net::tcp::message<PokerMessages> winMsg;
+					winMsg.header.id = PokerMessages::Info;
+
+					if(m_activePlayersId.size() == 1)
+					{
+						std::cout << "Player " << m_activePlayersId[0].id << " won!\n";
+						winMsgStr += "You've won the round! ";
+						winMsgStr += "The pot for you is: " << std::to_string(m_pot) << '\n';
+						
+						winMsg << winMsgStr;		
+						m_players[m_activePlayersId[0].connection->send(winMsg);
+
+						m_players[m_activePlayersId[0]].money += m_pot;
+					}
+					else
+					{
+						//Logic to check the winner
+						//Maybe import an existing hand evaluator
+						//https://github.com/zekyll/OMPEval
+					}
 					stage = Stage::Ending;
 					break;
 				}
@@ -163,6 +174,7 @@ public:
 
 	void ending_round()
 	{
+		m_pot = 0;
 		m_smallBlind++;
 		m_bigBlind++;
 
@@ -215,7 +227,6 @@ public:
 
 				std::unique_lock<std::mutex> lck(m_mutex);
 				m_cond.wait(lck, [this] { return m_playerAction; });
-
 				m_playerAction = false;
 				msgStr.clear();
 				msg.clear();
@@ -248,8 +259,10 @@ public:
 				returnMsg << message;
 				returnMsg.header.id = PokerMessages::Info;
 					
-				auto end = std::remove(m_activePlayersId.begin(), m_activePlayersId.end(),
-								remote->getId());
+				auto end = std::erase(
+					std::remove(m_activePlayersId.begin(), m_activePlayersId.end(),
+								remote->getId())
+				);
 
 				message_all(returnMsg, remote);
 				m_playerAction = true;
@@ -330,6 +343,7 @@ private:
 	long long INITIAL_AMOUNT = 2500;
 	long long int m_pot = 0;
 	long m_playersCount = 0;
+	int currentId;
 
 	std::unordered_map<uint32_t, Player> m_players;
 	std::vector<uint32_t> m_activePlayersId;
