@@ -70,9 +70,17 @@ class Deque
 				std::mt19937{ std::random_device{}()});
 		}
 
+		void reset()
+		{
+			fill();
+		}
+
 private:
 	void fill()
 	{
+		if(!m_cards.empty())
+			m_cards.clear();
+		
 		for (int i = 0; i < 4; i++)
 		{
 			for (int j = 0; j < 13; j++)
