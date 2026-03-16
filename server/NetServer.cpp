@@ -1,12 +1,21 @@
 #include <olc_net_server.h>
 #include <unordered_map>
 #include <deque_card.h>
-#include <enums.h>
 #include <optional>
 #include <array>
 
+enum class Stage : uint8_t
+{
+	PreFlop,
+	Flop,
+	Turn,
+	River,
+	CardChecking,
+	Ending
+};
 
-enum class PokerMessages : uint8_t
+
+enum class PokerMessages
 {
 	Ping,
 	Info,
@@ -33,6 +42,7 @@ struct Player
 	}
 };
 
+
 class Server : public net::tcp::server<PokerMessages>
 {
 public:
@@ -42,7 +52,6 @@ public:
 	{
 	}
 
-	/* ---- Game logic ---- */
 	void start_game()
 	{
 		net::tcp::message<PokerMessages> msg;
@@ -83,9 +92,9 @@ public:
 		/*m_playersMoney[m_smallBlind] -= currentBet / 2;
 		m_playersMoney[m_bigBlind] -= currentBet;*/
 		int currentPlayerIdx = 2;
-		
+
 		std::vector<Card> communityCards;
-		
+
 		net::tcp::message<PokerMessages> msgCards;
 		msgCards.header.id = PokerMessages::Info;
 
@@ -97,80 +106,96 @@ public:
 			currentId = m_activePlayersId[currentPlayerIdx];
 			switch (stage)
 			{
-				case Stage::PreFlop:
-				{
-					bettingRound(currentPlayerIdx);
-					stage = Stage::Flop;
-					break;
-				}
-				case Stage::Flop:
-				{
-					for (int i = 0; i < 3; i++)
-					{
-						communityCards.push_back(m_deque.getCard());
-						msgCards << communityCards.back() << " ";
-						msgCards << '\n';
-					}
-					
-					message_all(msgCards);
-					
-					bettingRound(currentPlayerIdx);
-					stage = Stage::Turn;
-					break;
-				}
-				case Stage::Turn:
+			case Stage::PreFlop:
+			{
+				bettingRound(currentPlayerIdx);
+				stage = Stage::Flop;
+				break;
+			}
+			case Stage::Flop:
+			{
+				for (int i = 0; i < 3; i++)
 				{
 					communityCards.push_back(m_deque.getCard());
 					msgCards << communityCards.back() << " ";
 					msgCards << '\n';
-					message_all(msgCards);
-
-					bettingRound(currentPlayerIdx);
-					stage = Stage::River;
-					break;
 				}
-				case Stage::River:
+
+				message_all(msgCards);
+
+				bettingRound(currentPlayerIdx);
+				stage = Stage::Turn;
+				break;
+			}
+			case Stage::Turn:
+			{
+				communityCards.push_back(m_deque.getCard());
+				msgCards << communityCards.back() << " ";
+				msgCards << '\n';
+				message_all(msgCards);
+
+				bettingRound(currentPlayerIdx);
+				stage = Stage::River;
+				break;
+			}
+			case Stage::River:
+			{
+				communityCards.push_back(m_deque.getCard());
+				msgCards << communityCards.back() << " ";
+				msgCards << '\n';
+				message_all(msgCards);
+
+				bettingRound(currentPlayerIdx);
+				stage = Stage::CardChecking;
+				break;
+			}
+			case Stage::CardChecking:
+			{
+				std::string winMsgStr;
+				net::tcp::message<PokerMessages> winMsg;
+				winMsg.header.id = PokerMessages::Info;
+
+				if (m_activePlayersId.size() == 1)
 				{
-					communityCards.push_back(m_deque.getCard());
-					msgCards << communityCards.back() << " ";
-					msgCards << '\n';
-					message_all(msgCards);
-					
-					bettingRound(currentPlayerIdx);
-					stage = Stage::CardChecking;
-					break;
+					std::cout << "Player " << m_players[m_activePlayersId[0]].id << " won!\n";
+					winMsgStr += "You've won the round! ";
+					winMsgStr += "The pot for you is: " + std::to_string(m_pot) + '\n';
+
+					winMsg << winMsgStr;
+					m_players[m_activePlayersId[0]].connection->send(winMsg);
+
+					m_players[m_activePlayersId[0]].money += m_pot;
 				}
-				case Stage::CardChecking:
+				else
 				{
-					std::string winMsgStr;
-					net::tcp::message<PokerMessages> winMsg;
-					winMsg.header.id = PokerMessages::Info;
-
-					if(m_activePlayersId.size() == 1)
-					{
-						std::cout << "Player " << m_activePlayersId[0].id << " won!\n";
-						winMsgStr += "You've won the round! ";
-						winMsgStr += "The pot for you is: " << std::to_string(m_pot) << '\n';
-						
-						winMsg << winMsgStr;		
-						m_players[m_activePlayersId[0].connection->send(winMsg);
-
-						m_players[m_activePlayersId[0]].money += m_pot;
-					}
-					else
-					{
-						//Logic to check the winner
-						//Maybe import an existing hand evaluator
-						//https://github.com/zekyll/OMPEval
-					}
-					stage = Stage::Ending;
-					break;
+					//Logic to check the winner
+					//Maybe import an existing hand evaluator
+					//https://github.com/zekyll/OMPEval
 				}
+				stage = Stage::Ending;
+				break;
+			}
 			}
 		}
 		msgCards.clear();
 		ending_round();
 	}
+
+	private:
+		bool equalBets()
+		{
+			if (m_activePlayersId.empty())
+				return true;
+
+			auto firstBet = m_players[m_activePlayersId[0]].currentBet;
+			for (auto id : m_activePlayersId)
+			{
+				if (m_players[id].currentBet != firstBet)
+					return false;
+			}
+			return true;
+		}
+
 
 	void ending_round()
 	{
@@ -189,53 +214,38 @@ public:
 		start_game();
 	}
 
-	private:
-		bool equalBets()
+	void bettingRound(int& currentPlayerIdx)
+	{
+		while (m_activePlayersId.size() > 1 && !equalBets())
 		{
-			if (m_activePlayersId.empty())
-				return true;
+			std::string msgStr;
+			net::tcp::message<PokerMessages> msg;
+			msg.header.id = PokerMessages::Info;
 
-			auto firstBet = m_players[m_activePlayersId[0]].currentBet;
-			for (auto id : m_activePlayersId)
-			{
-				if (m_players[m_activePlayersId[id]].currentBet != firstBet)
-					return false;
-			}
-			return true;
+			msgStr = "Player " + std::to_string(currentPlayerIdx) + " time\n";
+			msgStr += "Current bet is $" + std::to_string(currentBet) + '\n';
+			msgStr += "Waiting player " + std::to_string(currentPlayerIdx) + " decision\n";
+			msg << msgStr;
+
+			for (auto p : m_activePlayersId)
+				m_players[p].connection->send(msg);
+
+			//Send a Sync msg to tell the player its his time to play
+			net::tcp::message<PokerMessages> sync;
+			sync.header.id = PokerMessages::Sync;
+			message_client(sync, m_players[currentId].connection);
+
+			std::unique_lock<std::mutex> lck(m_mutex);
+			m_cond.wait(lck, [this] { return m_playerAction; });
+
+			m_playerAction = false;
+			msgStr.clear();
+			msg.clear();
+			currentPlayerIdx = (currentPlayerIdx + 1) % static_cast<int>(m_activePlayersId.size());
+			currentId = m_activePlayersId[currentPlayerIdx];
 		}
+	}
 
-		void bettingRound(int& currentPlayerIdx)
-		{
-			while (m_activePlayersId.size() > 1 && !equalBets())
-			{
-				std::string msgStr;
-				net::tcp::message<PokerMessages> msg;
-				msg.header.id = PokerMessages::Info;
-
-				msgStr = "Player " + std::to_string(currentPlayerIdx) + " time\n";
-				msgStr += "Current bet is $" + std::to_string(currentBet) + '\n';
-				msgStr += "Waiting player " + std::to_string(currentPlayerIdx) + " decision\n";
-				msg << msgStr;
-
-				for (auto p : m_activePlayersId)
-					m_players[p].connection->send(msg);
-
-				//Send a Sync msg to tell the player its his time to play
-				net::tcp::message<PokerMessages> sync;
-				sync.header.id = PokerMessages::Sync;
-				message_client(sync, m_players[currentId].connection);
-
-				std::unique_lock<std::mutex> lck(m_mutex);
-				m_cond.wait(lck, [this] { return m_playerAction; });
-				m_playerAction = false;
-				msgStr.clear();
-				msg.clear();
-				currentPlayerIdx = (currentPlayerIdx + 1) % static_cast<int>(m_activePlayersId.size());
-				currentId = m_activePlayersId[currentPlayerIdx];
-			}
-		}
-
-	/* ---- Network logic ---- */
 	virtual void on_message(net::tcp::message<PokerMessages>& msg,
 		std::shared_ptr<net::tcp::connection<PokerMessages>> remote)
 	{
@@ -259,9 +269,9 @@ public:
 				returnMsg << message;
 				returnMsg.header.id = PokerMessages::Info;
 					
-				auto end = std::erase(
+				m_activePlayersId.erase(
 					std::remove(m_activePlayersId.begin(), m_activePlayersId.end(),
-								remote->getId())
+						remote->getId()), m_activePlayersId.end()
 				);
 
 				message_all(returnMsg, remote);
@@ -306,13 +316,13 @@ public:
 	{
 		auto& client = m_connections.back();
 
-		m_players.insert({ client->getId(), 
-			{client->getId(), INITIAL_AMOUNT, 0, {std::nullopt, std::nullopt},
-			client, false}
-		});
 		m_activePlayersId.push_back(client->getId());
-
 		std::cout << ++m_playersCount << "º player connected\n";
+
+		m_players.insert({ client->getId(),
+				{client->getId(), INITIAL_AMOUNT, 0, {std::nullopt, std::nullopt},
+				client, false}
+		});
 
 		if (m_playersCount == 5)
 		{
