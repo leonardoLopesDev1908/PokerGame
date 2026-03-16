@@ -80,7 +80,11 @@ private:
 	{
 		if(!m_cards.empty())
 			m_cards.clear();
+<<<<<<< HEAD:NetDeque/deque_card.h
+		
+=======
 
+>>>>>>> main:common/deque_card.h
 		for (int i = 0; i < 4; i++)
 		{
 			for (int j = 0; j < 13; j++)
