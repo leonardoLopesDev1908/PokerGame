@@ -219,10 +219,9 @@ public:
 			if (m_activePlayersId.empty())
 				return true;
 
-			auto firstBet = m_players[m_activePlayersId[0]].currentBet;
 			for (auto id : m_activePlayersId)
 			{
-				if (m_players[id].currentBet != firstBet)
+				if (m_players[id].currentBet != currentBet)
 					return false;
 			}
 			return true;
@@ -316,7 +315,11 @@ public:
 			}
 			case PokerMessages::Call:
 			{
-				std::string msgCall = "Player " + std::to_string(remote->getId()) + " called\n";
+			    if(m_players[remote->getId()].money < currentBet)
+                {
+                    //call with all-in   
+                }
+                std::string msgCall = "Player " + std::to_string(remote->getId()) + " called\n";
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg << msgCall;
 				returnMsg.header.id = PokerMessages::Info;
@@ -331,6 +334,15 @@ public:
 			}
 			case PokerMessages::Raise:
 			{
+                if(m_players[remote->getId()].money < currentBet * 2)
+                {
+                    std::string invalidFold = "You do not have enough money to raise. Try call it\n";
+                    net::tcp::message<PokerMessages> msgInvalidFold;
+                    msgInvalidFold.header.id = PokerMessages::Info;
+                    msgInvalidFold << invalidFold;
+                    message_client(msgInvalidFold, remote);
+                    break;
+                }
 				std::string msgRaise = "Player " + std::to_string(remote->getId()) + " raised\n";
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg.header.id = PokerMessages::Info;
