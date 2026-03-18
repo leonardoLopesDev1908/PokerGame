@@ -72,7 +72,6 @@ namespace net
 				{
 					c->is_connected();
 				}
-
 				m_connections.clear();
 			}
 		
@@ -87,20 +86,13 @@ namespace net
 
 			void message_all(const message<T>& msg, std::shared_ptr<connection<T>> ignoreClient = nullptr)
 			{
-				message<T> msgAll;
-
-				if (ignoreClient)
-					msgAll << "[" << ignoreClient->getId() << "]: " << msg;
-				else
-					msgAll << msg;
-
 				bool bInvalidClientExists = false;
 				for (auto& c : m_connections)
 				{
 					if (c && c->is_connected())
 					{
 						if (c != ignoreClient)
-							c->send(msgAll);
+							c->send(msg);
 					}
 					else
 					{

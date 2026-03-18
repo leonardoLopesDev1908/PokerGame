@@ -12,7 +12,7 @@ class Card
 
 	enum class Suit
 	{
-		HEARTS, SPADES, DIAMOND, CLUBS
+		CLUBS, SPADES, HEARTS, DIAMOND
 	};
 
 public:
@@ -35,7 +35,7 @@ std::ostream& operator<< (std::ostream& os, const Card& card)
 	};
 
 	static const char* suits[] = {
-		"Hearts", "Spades", "Diamond", "Clubs"
+		"Clubs", "Spades", "Hearts", "Diamond"
 	};
 
 	os << ranks[static_cast<int>(card.rank)] << " of " 
@@ -80,11 +80,6 @@ private:
 	{
 		if(!m_cards.empty())
 			m_cards.clear();
-<<<<<<< HEAD:NetDeque/deque_card.h
-		
-=======
-
->>>>>>> main:common/deque_card.h
 		for (int i = 0; i < 4; i++)
 		{
 			for (int j = 0; j < 13; j++)

@@ -1,1 +1,3 @@
-Error waiting for client play
+OMPEval integrated
+
+Error at the initiation of the game

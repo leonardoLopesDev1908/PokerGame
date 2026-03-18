@@ -3,6 +3,8 @@
 #include <deque_card.h>
 #include <optional>
 #include <array>
+#include "omp/HandEvaluator.h"
+#include "omp/Hand.h"
 
 enum class Stage : uint8_t
 {
@@ -13,7 +15,6 @@ enum class Stage : uint8_t
 	CardChecking,
 	Ending
 };
-
 
 enum class PokerMessages
 {
@@ -41,7 +42,6 @@ struct Player
 		folded = false;
 	}
 };
-
 
 class Server : public net::tcp::server<PokerMessages>
 {
@@ -88,6 +88,7 @@ public:
 
 	void game()
 	{
+		std::cout << "Enter the game\n";
 		//Rebuild small and big logics
 		/*m_playersMoney[m_smallBlind] -= currentBet / 2;
 		m_playersMoney[m_bigBlind] -= currentBet;*/
@@ -100,9 +101,11 @@ public:
 
 		Stage stage = Stage::PreFlop;
 
+		std::cout << "enter the sleep\n";
+		std::this_thread::sleep_for(std::chrono::seconds(2));
+
 		while (stage != Stage::Ending && !m_activePlayersId.empty())
 		{
-			//Build the logic to keep the stage or change it
 			currentId = m_activePlayersId[currentPlayerIdx];
 			switch (stage)
 			{
@@ -168,9 +171,38 @@ public:
 				}
 				else
 				{
-					//Logic to check the winner
-					//Maybe import an existing hand evaluator
-					//https://github.com/zekyll/OMPEval
+					//This loop uses OMPEval lib to evaluate every remaning hand 
+					// https://github.com/zekyll/OMPEval
+					//Uses static_cast to cast enums Rank and Suit to ints
+
+					uint32_t idWinner;
+					long evaluatorIdx = 0;
+					for (auto& id : m_activePlayersId)
+					{
+						omp::Hand hand;
+						auto pHand = m_players[id].hand;
+
+						hand += 4 * static_cast<int>(pHand[0]->rank) + static_cast<int>(pHand[0]->suit);
+						hand += 4 * static_cast<int>(pHand[1]->rank) + static_cast<int>(pHand[1]->suit);
+
+						for (auto& card : communityCards)
+						{
+							hand += 4 * static_cast<int>(card.rank) + static_cast<int>(card.suit);
+						}
+
+						int value = evaluator.evaluate(hand);
+						if (value > evaluatorIdx)
+						{
+							evaluatorIdx = value;
+							idWinner = id;
+						}
+					}
+
+					std::cout << "Player " << idWinner << " won the round\n";
+					net::tcp::message<PokerMessages> winMsg;
+					winMsg << "You won! + $" << std::to_string(m_pot) << "\n";
+					message_client(winMsg, m_players[idWinner].connection);
+
 				}
 				stage = Stage::Ending;
 				break;
@@ -216,8 +248,11 @@ public:
 
 	void bettingRound(int& currentPlayerIdx)
 	{
+
 		while (m_activePlayersId.size() > 1 && !equalBets())
 		{
+			std::cout << "enter the bettingRound\n";
+			std::this_thread::sleep_for(std::chrono::seconds(2));
 			std::string msgStr;
 			net::tcp::message<PokerMessages> msg;
 			msg.header.id = PokerMessages::Info;
@@ -237,8 +272,8 @@ public:
 
 			std::unique_lock<std::mutex> lck(m_mutex);
 			m_cond.wait(lck, [this] { return m_playerAction; });
-
 			m_playerAction = false;
+
 			msgStr.clear();
 			msg.clear();
 			currentPlayerIdx = (currentPlayerIdx + 1) % static_cast<int>(m_activePlayersId.size());
@@ -358,6 +393,7 @@ private:
 	std::unordered_map<uint32_t, Player> m_players;
 	std::vector<uint32_t> m_activePlayersId;
 
+	omp::HandEvaluator evaluator;
 	std::thread m_threadGame;
 	std::mutex m_mutex;
 	std::condition_variable m_cond;
