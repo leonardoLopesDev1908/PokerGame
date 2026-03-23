@@ -1,3 +1,8 @@
 OMPEval integrated
 
-Error at the initiation of the game
+Something is wrong with the small and big debts. The third players is
+losing $50 even hes not any blind
+
+Logic for the winner is working fine
+
+Need for modularization-> separete server and game logic
