@@ -1,6 +1,8 @@
+#pragma once
 #include <deque>
 #include <algorithm>
 #include <random>
+#include <ostream>
 
 class Card
 {
@@ -52,9 +54,9 @@ class Deque
 			fill();
 		}
 
-		Card& getCard()
+		Card getCard()
 		{
-			auto& card = m_cards.back();
+			auto card = m_cards.back();
 			m_cards.pop_back();
 			return card;
 		}

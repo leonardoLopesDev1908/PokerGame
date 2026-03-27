@@ -1,10 +1,15 @@
 #pragma once
 
+#include <olc_net_server.h>
+
 #include <deque_card.h>
 #include <poker_messages.h>
-#include <olc_net_server.h>
+#include <GameState.h>
+
 #include "omp/HandEvaluator.h"
 #include "omp/Hand.h"
+
+#include <optional>
 #include <memory>
 #include <array>
 #include <vector>
@@ -21,33 +26,34 @@ enum class Stage : uint8_t
 	Ending
 };
 
-struct Player
-{
-	uint32_t id;
-	long long int money = 2500;
-	long long int bet = 0;
-	std::array<std::optional<Card>, 2> hand = { std::nullopt, std::nullopt };
-	std::shared_ptr<net::tcp::connection<PokerMessages>> connection;
-	bool folded = false;
-
-	void reset_round()
-	{
-		bet = 0;
-		hand = { std::nullopt, std::nullopt };
-		folded = false;
-	}
-};
-
 class Game
 {
 public:
-		
+	
+	Game(GameState& gameState);
+	Game& operator=(GameState& gameState);
 	void game_loop();
 	void start_game();
-	void game();
+	void run_game();
+	void stop();
 
 private:
 	bool equalBets();
 	void ending_round();
 	void bettingRound(short& currentIndex);
+
+private:
+	IServer m_server;
+	GameState& m_gameState;
+	omp::HandEvaluator m_evaluator;
+
+	std::condition_variable m_cond;
+	std::mutex m_mutex;
+
+	uint32_t currentId;
+	short m_smallBlind = 1;
+	short m_bigBlind = 2;
+	long m_playersCount = 0;
+
+	Deque m_deque;
 };

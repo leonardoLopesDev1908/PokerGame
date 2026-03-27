@@ -5,6 +5,8 @@ find_package(asio CONFIG REQUIRED)
 target_include_directories(Server PRIVATE ../netcommon)
 target_include_directories(Server PRIVATE ../evaluator)
 target_include_directories(Server PRIVATE ../common)
+target_include_directories(Server PRIVATE ../game)
 
 target_link_libraries(Server PRIVATE evaluator)
 target_link_libraries(Server PRIVATE asio::asio)
+target_link_libraries(Server PRIVATE game)

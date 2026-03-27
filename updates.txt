@@ -5,4 +5,13 @@ losing $50 even hes not any blind
 
 Logic for the winner is working fine
 
+
+
 Need for modularization-> separete server and game logic
+	
+
+GameState should manage the access to shared data between Game and Server
+
+Any edition to data intended by the Server must pass by Game Checking
+
+If the it is read-only access server can access directly in GameState
