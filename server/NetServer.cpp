@@ -1,23 +1,10 @@
-#include <olc_net_server.h>
 
-#include <unordered_map>
-#include <optional>
-#include <array>
-
-#include <deque_card.h>
-#include <poker_messages.h>
-#include <GameState.h>
-
-#include <Game.h>
-#include <IServer.h>
+#include <NetServer.h>
 
 //Server deal only with the connection logic and create
 //a separate entity to deal the game logic
-class Server : public net::tcp::server<PokerMessages>, public IServer
-{
-public:
 
-	explicit Server(uint16_t port, GameState& gameState, Game& game)
+	    explicit NetServer::Server(uint16_t port, GameState& gameState, Game& game)
 		: net::tcp::server<PokerMessages>(port),
 		m_gameState(gameState), m_game(game)
 	{
