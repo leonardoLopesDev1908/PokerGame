@@ -63,7 +63,11 @@ public:
 					
 				m_gameState.removeActivePlayer(remote->getId());
 
-				m_players[remote->getId()].folded = true;
+				//m_players[remote->getId()].folded = true;
+                m_gameState.withLock([&](GameState& state){
+                    Player& player = state.getPlayer(remote->getId());
+                    player.folded = true;
+                });
 
 				message_all(returnMsg, remote);
 				{
@@ -84,9 +88,19 @@ public:
 				returnMsg << msgCall;
 				returnMsg.header.id = PokerMessages::Info;
 
-				m_pot += currentBet;
-				m_players[remote->getId()].money -= currentBet - m_players[remote->getId()].bet;
-				m_players[remote->getId()].bet = currentBet;
+				//m_pot += currentBet;
+				m_gameState.updatePot();
+
+                //m_players[remote->getId()].money -= currentBet - m_players[remote->getId()].bet;
+                m_gameState.withLock([&](GameState& state){
+                    Player& player = state.getPlayer(remote->getId());
+                    player.setMoney(player.money - (state.currentBet - player.bet));  
+                });
+				
+                //m_players[remote->getId()].bet = currentBet;
+                m_gameState.withLock([&](GameState& state){
+                    state.updatePlayerBet(remote->getId());
+                });
 
 				message_all(returnMsg, remote);
 				{
@@ -113,7 +127,7 @@ public:
 				returnMsg.header.id = PokerMessages::Info;
 				message_all(returnMsg, remote);
 
-				currentBet *= 2;
+                    m_gameState.raise();
 
 				m_players[remote->getId()].money -= currentBet;
 				m_players[remote->getId()].bet = currentBet;

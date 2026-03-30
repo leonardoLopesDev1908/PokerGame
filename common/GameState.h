@@ -21,7 +21,13 @@ public:
 
     void updateCurrentId();   
 
+    void updatePlayerBet(uint32_t id);
+
     void removeActivePlayer(const uint32_t id);
+
+    void raise();
+
+    void call();
 
     Player& getPlayer(uint32_t id);
 
@@ -32,7 +38,7 @@ public:
     std::mutex m_mutex;
 
 private:
-    long long int currentBet = 50;
+    long long int m_currentBet = 50;
     short m_smallBlind = 1;
     short m_bigBlind = 2;
 

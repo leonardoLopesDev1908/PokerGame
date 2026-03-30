@@ -57,6 +57,11 @@ void GameState::updateCurrentId()
         
 }
 
+void GameState::updatePlayerBet(uint32_t id)
+{
+    m_players[id].bet = m_currentBet;
+}
+
 void GameState::removeActivePlayer(const uint32_t id)
 {
     std::lock_guard<std::mutex> lck(m_mutex);
@@ -64,6 +69,19 @@ void GameState::removeActivePlayer(const uint32_t id)
         std::remove(m_activePlayersId.begin(), m_activePlayersId.end(),
             remote->getId()), m_activePlayersId.end()
     );
+}
+
+void GameState::raise()
+{  
+    std::lock_guard<std::mutex> lck(m_mutex);
+    m_currentBet *= 2;
+    m_pot += m_currentBet;
+}
+
+void GameState::call()
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    m_pot += m_currentBet;
 }
 
 Player& GameState::getPlayer(uint32_t id)

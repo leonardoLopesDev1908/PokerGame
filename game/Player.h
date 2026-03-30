@@ -16,8 +16,7 @@ public:
 
 	void message(net::tcp::message<PokerMessages>& msg);
 
-	void updateMoney(long long newValue);
-
+    void setMoney(long long newMoney);
 public:
 	uint32_t id;
 	std::shared_ptr<net::tcp::connection<PokerMessages>> connection;
