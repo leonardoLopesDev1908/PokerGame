@@ -13,7 +13,17 @@ void Player::message(net::tcp::message<PokerMessages>& msg)
 	connection->send(msg);
 }
 
-void Player::updateMoney(long long newValue)
+void Player::setMoney(long long newValue)
 {
 	m_money = newValue;
+}
+
+long long int Player::getMoney()
+{
+	return m_money;
+}
+
+long long int Player::getBet()
+{
+	return m_bet;
 }

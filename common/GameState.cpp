@@ -24,21 +24,18 @@ void GameState::withLock(Func f)
     f(*this);
 }
 
-void GameState::updateCurrentBet(long long int newBet)
-{
-    m_currentBet = newBet;
-}
-
 void GameState::updateBlinds()
 {
     m_smallBlind = (m_smallBlind + 1) % m_playersCount;
     m_bigBlind = (m_bigBlind + 1) % m_playersCount;
 }
 
-void GameState::updatePot(long long int amount)
+void GameState::addPlayer(uint32_t id, PointerConnection& client) const
 {
-    std::lock_guard<std::mutex> lck(mutex);
-    m_pot += amount;
+    m_players.insert({
+        id, {id, INITIAL_AMOUNT, 0, {std::nullopt, std::nullopt},
+           client, false}
+     });
 }
 
 void GameState::updateActivePlayersId()
@@ -90,6 +87,10 @@ Player& GameState::getPlayer(uint32_t id)
     m_players.at(id);
 }
 
+long long int GameState::getCurrentBet()
+{
+    return m_currentBet;
+}
 
     
 

@@ -9,6 +9,8 @@
 #include <memory>
 #include <array>
 
+using PointerConnection = std::shared_ptr<net::tcp::connection<PokerMessages>>;
+
 class Player
 {
 public:
@@ -17,9 +19,14 @@ public:
 	void message(net::tcp::message<PokerMessages>& msg);
 
     void setMoney(long long newMoney);
+
+	long long int getMoney();
+
+	long long int getBet();
+
 public:
 	uint32_t id;
-	std::shared_ptr<net::tcp::connection<PokerMessages>> connection;
+	PointerConnection connection;
 	std::array<std::optional<Card>, 2> hand = { std::nullopt, std::nullopt };
 	bool folded = false;
 

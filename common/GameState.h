@@ -9,11 +9,9 @@ public:
     template <typename Func>
     void withLock(Func f);
 
-    void updateCurrentBet(long long int newBet);
-
     void updateBlinds();
 
-    void updatePot(long long int amount);
+    void addPlayer(uint32_t id, PointerConnection& connection);
 
     void updateActivePlayersId();
 
@@ -30,6 +28,8 @@ public:
     void call();
 
     Player& getPlayer(uint32_t id);
+
+    long long int getCurrentBet();
 
 public:
     long long INITIAL_AMOUNT = 2500;

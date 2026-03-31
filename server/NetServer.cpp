@@ -11,6 +11,7 @@
 #include <Game.h>
 #include <IServer.h>
 
+
 //Server deal only with the connection logic and create
 //a separate entity to deal the game logic
 class Server : public net::tcp::server<PokerMessages>, public IServer
@@ -72,29 +73,29 @@ public:
 				message_all(returnMsg, remote);
 				{
 					std::lock_guard<std::mutex> lck(m_mutex);
-					m_playerAction = true;
+					m_gameState.changePlayerAction();
 				}
 				m_cond.notify_one();
 				break;
 			}
 			case PokerMessages::Call:
 			{
-			    if(m_players[remote->getId()].money < currentBet)
+			    /*if (m_players[remote->getId()].money < currentBet)
                 {
-                    //call with all-in   
-                }
+                    call with all-in   
+                }*/
                 std::string msgCall = "Player " + std::to_string(remote->getId() + 1) + " called\n";
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg << msgCall;
 				returnMsg.header.id = PokerMessages::Info;
 
 				//m_pot += currentBet;
-				m_gameState.updatePot();
+				m_gameState.call();
 
                 //m_players[remote->getId()].money -= currentBet - m_players[remote->getId()].bet;
                 m_gameState.withLock([&](GameState& state){
                     Player& player = state.getPlayer(remote->getId());
-                    player.setMoney(player.money - (state.currentBet - player.bet));  
+                    player.setMoney(player.getMoney() - (state.getCurrentBet() - player.getBet()));
                 });
 				
                 //m_players[remote->getId()].bet = currentBet;
@@ -103,17 +104,14 @@ public:
                 });
 
 				message_all(returnMsg, remote);
-				{
-					std::lock_guard<std::mutex> lck(m_mutex);
-					m_playerAction = true;
-				}
+				
 				m_cond.notify_one();
 				
 				break;
 			}
 			case PokerMessages::Raise:
 			{
-                if(m_players[remote->getId()].money < currentBet * 2)
+                /*if(m_players[remote->getId()].money < currentBet * 2)
                 {
                     std::string invalidFold = "You do not have enough money to raise. Try call it\n";
                     net::tcp::message<PokerMessages> msgInvalidFold;
@@ -121,22 +119,27 @@ public:
                     msgInvalidFold << invalidFold;
                     message_client(msgInvalidFold, remote);
                     break;
-                }
+                }*/
 				std::string msgRaise = "Player " + std::to_string(remote->getId() + 1) + " raised\n";
 				net::tcp::message<PokerMessages> returnMsg;
 				returnMsg.header.id = PokerMessages::Info;
 				message_all(returnMsg, remote);
 
-                    m_gameState.raise();
+                m_gameState.raise();
 
-				m_players[remote->getId()].money -= currentBet;
-				m_players[remote->getId()].bet = currentBet;
-				m_pot += currentBet;
+				//m_players[remote->getId()].money -= currentBet;
+				m_gameState.withLock([&](GameState& state) {
+					Player& player = state.getPlayer(remote->getId());
+					player.setMoney(player.getMoney() - state.getCurrentBet());
+				});
 
-				{
-					std::lock_guard<std::mutex> lck(m_mutex);
-					m_playerAction = true;
-				}
+				//m_players[remote->getId()].bet = currentBet;
+				m_gameState.withLock([&](GameState& state) {
+					state.updatePlayerBet(remote->getId());
+				});
+
+				m_gameState.changePlayerAction();
+
 				m_cond.notify_one();
 				break;
 			}
@@ -147,15 +150,12 @@ public:
 	{
 		auto& client = m_connections.back();
 
-		m_activePlayersId.push_back(client->getId());
-		std::cout << ++m_playersCount << "º player connected\n";
+		m_gameState.m_activePlayersId.push_back(client->getId());
+		std::cout << ++m_gameState.m_playersCount << "º player connected\n";
 
-		m_players.insert({ client->getId(),
-				{client->getId(), INITIAL_AMOUNT, 0, {std::nullopt, std::nullopt},
-				client, false}
-		});
+		m_gameState.addPlayer(client->getId(), client);
 
-		if (m_playersCount == 5)
+		if (m_gameState.m_playersCount == 5)
 		{
 			std::cout << "Lets start the game\n";
 			m_threadGame = std::thread([this](){
@@ -166,7 +166,7 @@ public:
 		else
 		{
 			net::tcp::message<PokerMessages> msg;
-			msg << "Waiting " << std::to_string(5 - m_playersCount) << " players\n";
+			msg << "Waiting " << std::to_string(5 - m_gameState.m_playersCount) << " players\n";
 			msg.header.id = PokerMessages::Info;
 			message_all(msg);
 			wait_client_connect();
