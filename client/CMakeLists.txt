@@ -1,12 +1,10 @@
-﻿
-add_executable (Client "NetClient.cpp")
+﻿add_executable (Client 
+		"src/Client.cpp" 
+		"include/Client.h" 
+		"src/AppClient.cpp"
+)
 
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET Client PROPERTY CXX_STANDARD 20)
-endif()
+target_include_directories(Client PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-find_package(asio CONFIG REQUIRED)
-
-target_include_directories(Client PRIVATE ../netcommon)
-target_include_directories(Client PRIVATE ../common)
-target_link_libraries(Client PRIVATE asio::asio)
+target_link_libraries(Client PUBLIC net_common)
+target_link_libraries(Client PUBLIC common)

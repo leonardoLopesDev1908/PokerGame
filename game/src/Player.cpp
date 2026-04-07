@@ -1,5 +1,14 @@
 #include "Player.h"
 
+Player::Player(uint32_t id, PointerConnection& connection,
+	std::array<std::optional<Card>, 2> hand) 
+	: id(id), connection(connection), hand(hand)
+{
+}
+
+Player::Player()
+{
+}
 
 void Player::reset_round()
 {
@@ -26,4 +35,9 @@ long long int Player::getMoney()
 long long int Player::getBet()
 {
 	return m_bet;
+}
+
+void Player::setBet(long long int newBet)
+{
+	m_bet = newBet;
 }

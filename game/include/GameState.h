@@ -1,23 +1,36 @@
 #pragma once
 #include "Player.h"
 
+#include <poker_messages.h>
+#include <memory>
+#include <olc_net_server.h>
+#include <unordered_map>
+#include <vector>
+#include <mutex>
+
+using PointerConnection = std::shared_ptr<net::tcp::connection<PokerMessages>>;
+
 class GameState
 {
     friend class Game;
 public:
 
     template <typename Func>
-    void withLock(Func f);
+    void withLock(Func f)
+    {
+        std::lock_guard<std::mutex> lck(m_mutex);
+        f(*this);
+    }
 
     void updateBlinds();
 
     void addPlayer(uint32_t id, PointerConnection& connection);
 
-    void updateActivePlayersId();
-
     void changePlayerAction();
 
     void updateCurrentId();   
+
+    void collectBlinds(short small, short big);
 
     void updatePlayerBet(uint32_t id);
 
@@ -39,11 +52,7 @@ public:
 
 private:
     long long int m_currentBet = 50;
-    short m_smallBlind = 1;
-    short m_bigBlind = 2;
-
     long long int m_pot = 0;
-    uint32_t currentId;
 
     std::unordered_map<uint32_t, Player> m_players;
 

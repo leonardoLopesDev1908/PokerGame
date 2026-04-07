@@ -4,7 +4,8 @@
 
 Game::Game(GameState& gameState) 
 	: m_gameState(gameState)
-{}
+{	
+}
 
 void Game::game_loop()
 {
@@ -22,7 +23,7 @@ void Game::start_game()
 	msg.header.id = PokerMessages::Info;
 	msg << "Starting game...\n";
 
-	m_server.messageAll(msg);
+	m_server->messageAll(msg);
 
 	std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
@@ -53,19 +54,11 @@ void Game::start_game()
 
 void Game::run_game()
 {
-
 	{
 		std::cout << "Enter the game\n";
 
 		//Small and big blind bets
-		m_gameState.m_players[
-			m_gameState.m_smallBlind].money -= m_gameState.currentBet / 2;
-
-		m_gameState.m_players[
-			m_gameState.m_smallBlind].bet = m_gameState.currentBet / 2;
-
-		m_gameState.m_players[m_bigBlind].money -= m_gameState.currentBet;
-		m_gameState.m_players[m_bigBlind].bet = m_gameState.currentBet;
+		m_gameState.collectBlinds(m_smallBlind, m_bigBlind);
 
 		short currentIndex = 2;
 		currentId = m_gameState.m_activePlayersId[currentIndex];
@@ -85,7 +78,7 @@ void Game::run_game()
 		moneyInfo.header.id = PokerMessages::Info;
 		for (auto& p : m_gameState.m_players)
 		{
-			moneyInfo << "Your money: $" << std::to_string(p.second.money) << "\n";
+			moneyInfo << "Your money: $" << std::to_string(p.second.getMoney()) << "\n";
 			p.second.connection->send(moneyInfo);
 			moneyInfo.clear();
 		}
@@ -116,7 +109,7 @@ void Game::run_game()
 					oss << '\n';
 				}
 				msgCards << oss.str();
-				m_server.messageAll(msgCards);
+				m_server->messageAll(msgCards);
 				oss.str("");
 
 				bettingRound(currentIndex);
@@ -134,7 +127,7 @@ void Game::run_game()
 				oss << '\n';
 
 				msgCards << oss.str();
-				m_server.messageAll(msgCards);
+				m_server->messageAll(msgCards);
 				oss.str("");
 
 				bettingRound(currentIndex);
@@ -152,7 +145,7 @@ void Game::run_game()
 				oss << '\n';
 
 				msgCards << oss.str();
-				m_server.messageAll(msgCards);
+				m_server->messageAll(msgCards);
 				oss.str("");
 
 				bettingRound(currentIndex);
@@ -172,9 +165,10 @@ void Game::run_game()
 					winMsgStr += "The pot for you is: " + std::to_string(m_gameState.m_pot) + '\n';
 
 					winMsg << winMsgStr;
-					m_gameState.m_players[m_gameState.m_activePlayersId[0]].connection->send(winMsg);
 
-					m_gameState.m_players[m_gameState.m_activePlayersId[0]].money += m_gameState.m_pot;
+					Player& winner = m_gameState.m_players[m_gameState.m_activePlayersId[0]];
+					m_server->sendMessage(winMsg, winner.id);
+					winner.setMoney(winner.getMoney() + m_gameState.m_pot);
 				}
 				else
 				{
@@ -210,11 +204,11 @@ void Game::run_game()
 					winMsg.header.id = PokerMessages::Info;
 
 					winMsg << "Player " << idWinner << " won the round\n";
-					m_server.messageAll(winMsg);
+					m_server->messageAll(winMsg);
 
 					winMsg.clear();
 					winMsg << "You won! + $" << std::to_string(m_gameState.m_pot) << "\n";
-					m_server.sendMessage(winMsg, idWinner);
+					m_server->sendMessage(winMsg, idWinner);
 				}
 				stage = Stage::Ending;
 				break;
@@ -237,7 +231,7 @@ bool Game::equalBets()
 
 	for (auto id : m_gameState.m_activePlayersId)
 	{
-		if (m_gameState.m_players[id].bet != m_gameState.currentBet)
+		if (m_gameState.m_players[id].getBet() != m_gameState.m_currentBet)
 			return false;
 	}
 	return true;
@@ -246,8 +240,8 @@ bool Game::equalBets()
 void Game::ending_round()
 {
 	m_gameState.m_pot = 0;
-	m_smallBlind++;
-	m_bigBlind++;
+	m_smallBlind = (m_smallBlind + 1) % static_cast<int>(m_gameState.m_activePlayersId.size());
+	m_bigBlind = (m_bigBlind + 1) % static_cast<int>(m_gameState.m_activePlayersId.size());
 
 	m_gameState.m_activePlayersId.clear();
 	for (auto& p : m_gameState.m_players)
@@ -258,7 +252,6 @@ void Game::ending_round()
 
 	m_deque.reset();
 }
-
 
 void Game::bettingRound(short& currentIndex)
 {
@@ -278,17 +271,17 @@ void Game::bettingRound(short& currentIndex)
 			msg.header.id = PokerMessages::Info;
 
 			msgStr = "Player " + std::to_string(currentId + 1) + " time\n";
-			msgStr += "Current bet is $" + std::to_string(m_gameState.currentBet) + '\n';
+			msgStr += "Current bet is $" + std::to_string(m_gameState.m_currentBet) + '\n';
 			msgStr += "Waiting player " + std::to_string(currentId + 1) + " decision\n";
 			msg << msgStr;
 
 			for (auto p : m_gameState.m_activePlayersId)
-				m_gameState.m_players[p].connection->send(msg);
+				m_server->messageAll(msg);
 
 			//Send a Sync msg to tell the player its his time to play
 			net::tcp::message<PokerMessages> sync;
 			sync.header.id = PokerMessages::Sync;
-			m_server.sendMessage(sync, currentId);
+			m_server->sendMessage(sync, currentId);
 
 			msgStr.clear();
 			msg.clear();
@@ -298,11 +291,14 @@ void Game::bettingRound(short& currentIndex)
 			m_gameState.m_playerAction = false;
 
 			actionsThisRound++;
-
 		}
-		currentIndex = (currentIndex + 1) % static_cast<int>(m_gameState.m_activePlayersId.size());
+		currentIndex++;
 		currentId = m_gameState.m_activePlayersId[currentIndex];
 	}
 }
 
+void Game::setServer(IServer* server)
+{
+	m_server = server;
+}
 

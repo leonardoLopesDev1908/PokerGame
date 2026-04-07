@@ -1,3 +1,4 @@
+#pragma once
 #include <olc_net_server.h>
 
 #include <unordered_map>
@@ -11,23 +12,24 @@
 #include <Game.h>
 #include <IServer.h>
 
+using PointerConnection = std::shared_ptr<net::tcp::connection<PokerMessages>>;
+
 //Server deal only with the connection logic and create
 //a separate entity to deal the game logic
 class Server : public net::tcp::server<PokerMessages>, public IServer
 {
 public:
-
 	explicit Server(uint16_t port, GameState& gameState, Game& game);
+    
+	virtual void sendMessage(net::tcp::message<PokerMessages>& msg, uint32_t playerId);
 	
-    virtual void sendMessage(net::tcp::message<PokerMessages>& msg, uint32_t playerId);
-
 	virtual void messageAll(net::tcp::message<PokerMessages>& msg);
-
-    virtual void on_message(net::tcp::message<PokerMessages>& msg,
-		std::shared_ptr<net::tcp::connection<PokerMessages>> remote);
-
+    
+	virtual void on_message(net::tcp::message<PokerMessages>& msg,
+						PointerConnection remote);
+	
 	virtual void on_client_connect();
-
+	
 	virtual void on_client_disconnect();
 
 private:
