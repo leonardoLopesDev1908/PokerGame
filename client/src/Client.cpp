@@ -6,7 +6,6 @@ void Client::ping()
 	net::tcp::message<PokerMessages> msg;
 	msg.header.id = PokerMessages::Ping;
 	msg << "ECHO\n";
-
 	send(msg);
 }
 

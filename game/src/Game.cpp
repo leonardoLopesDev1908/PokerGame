@@ -2,9 +2,9 @@
 #include "IServer.h"
 
 
-Game::Game(GameState& gameState) 
+Game::Game(GameState& gameState)
 	: m_gameState(gameState)
-{	
+{
 }
 
 void Game::game_loop()
@@ -37,18 +37,18 @@ void Game::start_game()
 		msg.clear();
 		oss.str("");
 
-		auto& c = p.second.connection;
+		auto playerId = p.second.id;
 
 		oss << "Your cards: \n";
 		for (int i = 0; i < 2; i++)
 		{
-			m_gameState.m_players[c->getId()].hand[i] = m_deque.getCard();
-			oss << m_gameState.m_players[c->getId()].hand[i].value() << (i == 0 ? ", " : "");
+			m_gameState.m_players[playerId].hand[i] = m_deque.getCard();
+			oss << m_gameState.m_players[playerId].hand[i].value() << (i == 0 ? ", " : "");
 		}
 
 		msgStr = oss.str();
 		msg << msgStr;
-		c->send(msg);
+		m_server->sendMessage(msg, playerId);
 	}
 }
 
@@ -79,7 +79,7 @@ void Game::run_game()
 		for (auto& p : m_gameState.m_players)
 		{
 			moneyInfo << "Your money: $" << std::to_string(p.second.getMoney()) << "\n";
-			p.second.connection->send(moneyInfo);
+			m_server->sendMessage(moneyInfo, p.second.id);
 			moneyInfo.clear();
 		}
 
@@ -261,10 +261,7 @@ void Game::bettingRound(short& currentIndex)
 	while (m_gameState.m_activePlayersId.size() > 1 &&
 		(actionsThisRound < playersNeeded || !equalBets()))
 	{
-		if (currentIndex > m_gameState.m_activePlayersId.size())
-			currentIndex = 0;
-
-		if (!m_gameState.m_players[currentId].folded)
+		if (!m_gameState.m_players[currentId].m_folded)
 		{
 			std::string msgStr;
 			net::tcp::message<PokerMessages> msg;
@@ -276,7 +273,7 @@ void Game::bettingRound(short& currentIndex)
 			msg << msgStr;
 
 			for (auto p : m_gameState.m_activePlayersId)
-				m_server->messageAll(msg);
+				m_server->sendMessage(msg, p);
 
 			//Send a Sync msg to tell the player its his time to play
 			net::tcp::message<PokerMessages> sync;
@@ -287,12 +284,16 @@ void Game::bettingRound(short& currentIndex)
 			msg.clear();
 
 			std::unique_lock<std::mutex> lck(m_mutex);
-			m_cond.wait(lck, [this] { return m_gameState.m_playerAction; });
+			m_gameState.m_cond.wait(lck, [this] { return m_gameState.m_playerAction; });
+
 			m_gameState.m_playerAction = false;
 
 			actionsThisRound++;
 		}
 		currentIndex++;
+		if (currentIndex >= m_gameState.m_activePlayersId.size())
+			currentIndex = 0;
+
 		currentId = m_gameState.m_activePlayersId[currentIndex];
 	}
 }

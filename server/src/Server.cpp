@@ -46,18 +46,13 @@ void Server::on_message(net::tcp::message<PokerMessages>& msg,
 			returnMsg << message;
 			returnMsg.header.id = PokerMessages::Info;
 					
-			m_gameState.removeActivePlayer(remote->getId());
+			//m_gameState.removeActivePlayer(remote->getId());
 
-			m_gameState.withLock([&](GameState& state){
-				Player& player = state.getPlayer(remote->getId());
-				player.folded = true;
-			});
+			m_gameState.setPlayerFold(remote->getId());
 
 			message_all(returnMsg, remote);
 			
 			m_gameState.changePlayerAction();
-			
-			m_cond.notify_one();
 			break;
 		}
 		case PokerMessages::Call:
@@ -84,7 +79,7 @@ void Server::on_message(net::tcp::message<PokerMessages>& msg,
 
 			message_all(returnMsg, remote);
 				
-			m_cond.notify_one();
+			m_gameState.changePlayerAction();
 				
 			break;
 		}
@@ -116,8 +111,6 @@ void Server::on_message(net::tcp::message<PokerMessages>& msg,
 			});
 
 			m_gameState.changePlayerAction();
-
-			m_cond.notify_one();
 			break;
 		}
 	}

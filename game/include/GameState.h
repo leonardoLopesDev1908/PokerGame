@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 #include <mutex>
+#include <condition_variable>
 
 using PointerConnection = std::shared_ptr<net::tcp::connection<PokerMessages>>;
 
@@ -40,6 +41,8 @@ public:
 
     void call();
 
+    void setPlayerFold(const uint32_t id);
+
     Player& getPlayer(uint32_t id);
 
     long long int getCurrentBet();
@@ -55,6 +58,8 @@ private:
     long long int m_pot = 0;
 
     std::unordered_map<uint32_t, Player> m_players;
+
+    std::condition_variable m_cond;
 
     bool m_playerAction = false;
     bool m_run = true;

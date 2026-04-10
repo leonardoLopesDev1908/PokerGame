@@ -1,3 +1,6 @@
 Modularization completed
 
-Error with playres time to play
+fold problem: the players time step one player
+	from player 1 to 3, player 4 to 2 and so on
+
+except for this, EVERYTHING LOOKS FINE: DO NOT CHANGE ANYTHING

@@ -13,43 +13,49 @@ int main()
 	bool bQuit = false;
 	while (!bQuit)
 	{
-		ReadConsoleInput(hInput, &record, 1, &eventsRead);
+		DWORD eventsAvailable = 0;
+		GetNumberOfConsoleInputEvents(hInput, &eventsAvailable);
 
-		if (record.EventType == KEY_EVENT)
+		if (eventsAvailable > 0)
 		{
-			KEY_EVENT_RECORD key = record.Event.KeyEvent;
-			if (key.bKeyDown)
-			{
-				char k = key.uChar.AsciiChar;
+			ReadConsoleInput(hInput, &record, 1, &eventsRead);
 
-				switch (k)
+			if (record.EventType == KEY_EVENT)
+			{
+				KEY_EVENT_RECORD key = record.Event.KeyEvent;
+				if (key.bKeyDown)
 				{
-				case '1':
-				{
-					c.ping();
-					break;
-				}
-				case '2':
-				{
-					c.fold();
-					break;
-				}
-				case '3':
-				{
-					c.call();
-					break;
-				}
-				case '4':
-				{
-					//Raising double the bet by default (for now)
-					c.raise();
-					break;
-				}
-				case '5':
-				{
-					bQuit = false;
-					break;
-				}
+					char k = key.uChar.AsciiChar;
+
+					switch (k)
+					{
+					case '1':
+					{
+						c.ping();
+						break;
+					}
+					case '2':
+					{
+						c.fold();
+						break;
+					}
+					case '3':
+					{
+						c.call();
+						break;
+					}
+					case '4':
+					{
+						//Raising double the bet by default (for now)
+						c.raise();
+						break;
+					}
+					case '5':
+					{
+						bQuit = true;
+						break;
+					}
+					}
 				}
 			}
 		}

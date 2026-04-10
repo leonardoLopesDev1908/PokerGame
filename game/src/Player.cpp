@@ -14,7 +14,7 @@ void Player::reset_round()
 {
 	m_bet = 0;
 	hand = { std::nullopt, std::nullopt };
-	folded = false;
+	m_folded = false;
 }
 
 void Player::message(net::tcp::message<PokerMessages>& msg)

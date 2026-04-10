@@ -16,6 +16,7 @@ void GameState::changePlayerAction()
 {
     std::lock_guard<std::mutex> lck(m_mutex);
     m_playerAction = m_playerAction ? false : true;
+    m_cond.notify_one();
 }
 
 void GameState::updateCurrentId()
@@ -28,9 +29,21 @@ void GameState::collectBlinds(short smallBlind, short bigBlind)
     small.setMoney(small.getMoney() - m_currentBet / 2);
     small.setBet(m_currentBet / 2);
 
+    std::string smallMsgStr = "Small blind collected from you\n";
+    net::tcp::message<PokerMessages> smallMsg;
+    smallMsg.header.id = PokerMessages::Info;
+    smallMsg << smallMsgStr;
+    small.message(smallMsg);
+
     Player& big = getPlayer(m_activePlayersId[bigBlind]);
     big.setMoney(big.getMoney() - m_currentBet);
     big.setBet(m_currentBet);
+
+    std::string bigMsgStr = "Big blind collected from you\n";
+    net::tcp::message<PokerMessages> bigMsg;
+    bigMsg.header.id = PokerMessages::Info;
+    bigMsg << bigMsgStr;
+    big.message(bigMsg);
 }
 
 void GameState::updatePlayerBet(uint32_t id)
@@ -48,7 +61,7 @@ void GameState::removeActivePlayer(const uint32_t id)
 }
 
 void GameState::raise()
-{  
+{
     std::lock_guard<std::mutex> lck(m_mutex);
     m_currentBet *= 2;
     m_pot += m_currentBet;
@@ -68,4 +81,10 @@ Player& GameState::getPlayer(uint32_t id)
 long long int GameState::getCurrentBet()
 {
     return m_currentBet;
+}
+
+void GameState::setPlayerFold(const uint32_t id)
+{
+    std::lock_guard<std::mutex> lck(m_mutex);
+    m_players[id].m_folded = true;
 }

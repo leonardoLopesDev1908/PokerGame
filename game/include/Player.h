@@ -35,7 +35,7 @@ public:
 	uint32_t id = 0;
 	PointerConnection connection = nullptr;
 	std::array<std::optional<Card>, 2> hand = { std::nullopt, std::nullopt };
-	bool folded = false;
+	bool m_folded = false;
 
 private:
 	long long int m_money = 2500;
