@@ -1,5 +1,6 @@
 ﻿#include "Client.h"
 
+
 void Client::ping()
 {
 	std::cout << "Pinging server...\n";

@@ -62,6 +62,8 @@ void Server::on_message(net::tcp::message<PokerMessages>& msg,
 				call with all-in   
 			}*/
 			std::string msgCall = "Player " + std::to_string(remote->getId() + 1) + " called\n";
+			std::cout << msgCall;
+
 			net::tcp::message<PokerMessages> returnMsg;
 			returnMsg << msgCall;
 			returnMsg.header.id = PokerMessages::Info;
@@ -97,6 +99,7 @@ void Server::on_message(net::tcp::message<PokerMessages>& msg,
 			std::string msgRaise = "Player " + std::to_string(remote->getId() + 1) + " raised\n";
 			net::tcp::message<PokerMessages> returnMsg;
 			returnMsg.header.id = PokerMessages::Info;
+			returnMsg << msgRaise;
 			message_all(returnMsg, remote);
 
 			m_gameState.raise();

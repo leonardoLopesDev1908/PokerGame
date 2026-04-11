@@ -15,8 +15,13 @@ public:
 	void fold();
 	void end();
 
+	HANDLE get_event_handle();
+
 private:
 	long long int m_money;
+	HANDLE m_hNetworkEvent = INVALID_HANDLE_VALUE;
+	
+	void set_network_event();
 };
 
 

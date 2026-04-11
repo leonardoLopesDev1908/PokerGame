@@ -164,7 +164,6 @@ namespace net
 							m_socket.close();
 						}
 					});
-					
 			}
 
 			void read_body()
@@ -194,7 +193,9 @@ namespace net
 					m_messagesIn.push_back({this->shared_from_this(), m_tempMessage});
 				}
 				else
+				{
 					m_messagesIn.push_back({ nullptr, m_tempMessage });
+				}
 				read_header();
 			}
 

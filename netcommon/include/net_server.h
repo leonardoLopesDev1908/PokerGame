@@ -77,11 +77,8 @@ namespace net
 		
 			void update()
 			{
-				while (!m_messages.empty())
-				{
-					auto msg = m_messages.pop_front();
-					on_message(msg.message, msg.remote);
-				}
+				auto msg = m_messages.pop_back();
+				on_message(msg.message, msg.remote);
 			}
 
 			void message_all(const message<T>& msg, std::shared_ptr<connection<T>> ignoreClient = nullptr)
